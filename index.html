@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>План</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14161a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#f4f2ee; --card:#fff; --line:#e2ddd4; --ink:#1d1f23; --muted:#6d7079;
+  --a1:#a8532c; --a2:#2f6b57; --warn:#8a5a12;
+  --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#14161a; --card:#1c1f25; --line:#2b3038; --ink:#e8e6e1; --muted:#969ba6;
+    --a1:#d97a4a; --a2:#5aab8c; --warn:#d3a04a;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+header{
+  position:sticky; top:0; z-index:5; background:var(--bg);
+  padding:calc(env(safe-area-inset-top) + 14px) 16px 10px;
+  border-bottom:1px solid var(--line);
+}
+header h1{margin:0; font-size:17px; font-weight:650; letter-spacing:-.01em}
+header .sub{color:var(--muted); font-size:13px; margin-top:2px}
+main{padding:16px 16px 92px; max-width:720px; margin:0 auto}
+nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:6;
+  display:flex; background:var(--card); border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1; background:none; border:0; color:var(--muted); font:inherit; font-size:11px;
+  padding:9px 2px 7px; cursor:pointer; line-height:1.3;
+}
+nav button b{display:block; font-size:17px; font-weight:400; margin-bottom:1px}
+nav button.on{color:var(--a1)}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow);
+}
+.card.tight{padding:0; overflow:hidden}
+h2{font-size:15px; font-weight:650; margin:0 0 10px; letter-spacing:-.01em}
+h3{font-size:14px; font-weight:650; margin:16px 0 6px}
+p{margin:0 0 10px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+hr{border:0; border-top:1px solid var(--line); margin:14px 0}
+
+/* шапка дня */
+.day-head{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:2px}
+.day-head .n{font-size:22px; font-weight:680; letter-spacing:-.02em}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.chip{
+  font-size:13px; padding:5px 10px; border-radius:8px;
+  background:color-mix(in srgb, var(--a1) 10%, transparent);
+  color:var(--a1); border:1px solid color-mix(in srgb, var(--a1) 22%, transparent);
+}
+.chip.b{background:color-mix(in srgb, var(--a2) 10%, transparent); color:var(--a2);
+  border-color:color-mix(in srgb, var(--a2) 22%, transparent)}
+button.chip{cursor:pointer; font-family:inherit}
+
+/* расписание */
+.sched{margin:0; padding:0; list-style:none}
+.sched li{display:flex; gap:12px; padding:6px 0; border-top:1px solid var(--line); font-size:14px}
+.sched li:first-child{border-top:0}
+.sched .t{color:var(--a1); font-variant-numeric:tabular-nums; font-weight:600; min-width:46px}
+
+/* чек-лист */
+.check{margin:0; padding:0; list-style:none}
+.check li{border-top:1px solid var(--line)}
+.check li:first-child{border-top:0}
+.check label{display:flex; gap:11px; align-items:flex-start; padding:9px 0; cursor:pointer; font-size:14px}
+.check input{width:21px; height:21px; margin:0; accent-color:var(--a2); flex:none}
+.check input:checked + span{color:var(--muted); text-decoration:line-through}
+
+/* поля ввода */
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:10px}
+.f{display:flex; flex-direction:column; gap:4px}
+.f label{font-size:12px; color:var(--muted)}
+input,select,textarea{
+  font:inherit; font-size:16px; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:9px; padding:9px 10px; width:100%;
+}
+textarea{min-height:96px; resize:vertical; line-height:1.5; font-size:14px}
+input:focus,textarea:focus,select:focus{outline:2px solid color-mix(in srgb,var(--a1) 45%,transparent); outline-offset:-1px}
+.btn{
+  display:inline-block; font:inherit; font-size:14px; font-weight:550;
+  background:var(--bg); color:var(--ink); border:1px solid var(--line);
+  border-radius:9px; padding:10px 14px; cursor:pointer; width:100%; text-align:center;
+}
+.btn.acc{background:var(--a1); border-color:var(--a1); color:#fff}
+.btn + .btn{margin-top:8px}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.row2 .btn + .btn{margin-top:0}
+
+/* списки */
+.list{margin:0; padding:0; list-style:none}
+.list li{border-top:1px solid var(--line)}
+.list li:first-child{border-top:0}
+.list button{
+  width:100%; text-align:left; background:none; border:0; font:inherit; color:inherit;
+  padding:12px 16px; cursor:pointer; display:flex; gap:10px; align-items:baseline;
+}
+.list .k{color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; min-width:58px; flex:none}
+.list .v{flex:1}
+.list .v small{display:block; color:var(--muted); font-size:12.5px}
+.list li.now{background:color-mix(in srgb,var(--a1) 7%,transparent)}
+.list li.now .k{color:var(--a1); font-weight:600}
+
+/* кухня */
+.tiles{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px}
+.tile{
+  background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  cursor:pointer; padding:0; text-align:left; font:inherit; color:inherit;
+}
+.tile img{width:100%; aspect-ratio:4/5; object-fit:cover; display:block; background:var(--line)}
+.tile span{display:block; padding:9px 10px; font-size:13.5px; line-height:1.35}
+.photo{width:100%; border-radius:12px; display:block; margin-bottom:12px}
+
+/* дневник */
+.big{font-size:34px; font-weight:680; letter-spacing:-.03em; line-height:1.1}
+.big span{font-size:15px; font-weight:400; color:var(--muted)}
+.delta{font-size:14px; margin-top:4px}
+.down{color:var(--a2)} .up{color:var(--warn)}
+svg.chart{width:100%; height:150px; display:block; margin:8px 0 4px}
+
+/* текст из markdown */
+.md{font-size:14.5px}
+.md :first-child{margin-top:0}
+.md :last-child{margin-bottom:0}
+.md h3{font-size:14px}
+.md ul,.md ol{margin:0 0 10px; padding-left:20px}
+.md li{margin-bottom:3px}
+.md code{
+  font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+  background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:1px 5px;
+}
+.md blockquote{
+  margin:12px 0; padding:10px 13px; border-left:3px solid var(--a1);
+  background:color-mix(in srgb,var(--a1) 7%,transparent); border-radius:0 8px 8px 0;
+}
+.md blockquote :last-child{margin-bottom:0}
+.md table{width:100%; border-collapse:collapse; font-size:13.5px; margin:0 0 10px; display:block; overflow-x:auto}
+.md th,.md td{border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top}
+.md th{background:var(--bg); font-weight:600}
+.md .fill{display:inline-block; min-width:120px; border-bottom:1px solid var(--muted)}
+details{border-top:1px solid var(--line)}
+details:first-of-type{border-top:0}
+summary{padding:11px 0; cursor:pointer; font-size:14px; font-weight:550; list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'+ '; color:var(--a1); font-weight:400}
+details[open] summary::before{content:'– '}
+details .md{padding:0 0 12px}
+
+.empty{text-align:center; padding:44px 20px; color:var(--muted)}
+.empty p{max-width:340px; margin:0 auto 16px}
+.hint{font-size:12.5px; color:var(--muted); margin-top:8px}
+.saved{color:var(--a2); font-size:12.5px; height:16px; margin-top:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="h-title">План</h1>
+  <div class="sub" id="h-sub"></div>
+</header>
+
+<main id="view"></main>
+
+<nav>
+  <button data-tab="today" class="on"><b>◉</b>Сегодня</button>
+  <button data-tab="plan"><b>▤</b>План</button>
+  <button data-tab="food"><b>◍</b>Кухня</button>
+  <button data-tab="log"><b>◔</b>Дневник</button>
+  <button data-tab="more"><b>⚙</b>Ещё</button>
+</nav>
+
+<input type="file" id="file" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+
+const DKEY = 'plan16.data';
+const SKEY = 'plan16.state';
+const WD = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const WD_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const MON = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+let D = null;                 // содержимое: периоды, блюда, документы
+let S = blank();              // дневник и настройки — только моё
+let tab = 'today';
+let openDay = null;           // какой день раскрыт на вкладке «План»
+let openRecipe = null;
+
+function blank(){ return {v:1, kind:'journal', log:{}, periods:[], ui:{}}; }
+
+/* ─────────────── даты ─────────────── */
+
+function iso(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function today(){ return iso(new Date()); }
+function parse(s){ const p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+function human(s){ const d = parse(s); return d.getDate() + ' ' + MON[d.getMonth()]; }
+function humanFull(s){ const d = parse(s); return WD[d.getDay()] + ', ' + d.getDate() + ' ' + MON[d.getMonth()]; }
+function shift(s, n){ const d = parse(s); d.setDate(d.getDate()+n); return iso(d); }
+function diffDays(a, b){ return Math.round((parse(b) - parse(a)) / 86400000); }
+function dowMon(s){ return (parse(s).getDay() + 6) % 7; }   // 0 = понедельник
+
+/* ─────────────── хранилище ─────────────── */
+
+function load(){
+  try { const raw = localStorage.getItem(DKEY); if (raw) D = JSON.parse(raw); } catch(e){ D = null; }
+  try { const raw = localStorage.getItem(SKEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch(e){ S = blank(); }
+}
+function save(){ try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e){ alert('Не удалось сохранить: ' + e.message); } }
+function saveData(){ try { localStorage.setItem(DKEY, JSON.stringify(D)); } catch(e){ alert('Файл слишком велик для хранилища браузера: ' + e.message); } }
+
+/* ─────────────── периоды и дни ─────────────── */
+
+function periods(){
+  const list = (D && D.periods ? D.periods.slice() : []).concat(S.periods || []);
+  return list.sort(function(a,b){ return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
+}
+
+function periodFor(day){
+  const list = periods();
+  let found = null;
+  for (const p of list){
+    if (p.start <= day && (!p.end || p.end >= day)) found = p;   // при наложении берём последний заведённый
+  }
+  return found;
+}
+
+function currentPeriod(){
+  const p = periodFor(today());
+  if (p) return p;
+  const list = periods();
+  if (!list.length) return null;
+  // до старта — ближайший будущий, после конца — последний
+  const future = list.filter(function(x){ return x.start > today(); });
+  return future.length ? future[0] : list[list.length-1];
+}
+
+function dayFor(day){
+  const p = periodFor(day);
+  if (!p) return null;
+  if (p.kind === 'weekly'){
+    const w = (p.week || [])[dowMon(day)] || {};
+    return {
+      period: p, n: diffDays(p.start, day) + 1, date: day, weekday: WD[parse(day).getDay()],
+      gym: w.gym || '', topic: w.topic || '', lunch: w.lunch || '', dinner: w.dinner || '',
+      html: w.note ? '<p>' + esc(w.note).replace(/\n/g,'<br>') + '</p>' : ''
+    };
+  }
+  const d = (p.days || []).find(function(x){ return x.date === day; });
+  return d ? Object.assign({period:p}, d) : null;
+}
+
+/* ─────────────── мелочи ─────────────── */
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+function num(v){ const n = parseFloat(String(v).replace(',','.')); return isFinite(n) ? n : null; }
+function fmt(n, d){ return n == null ? '—' : n.toFixed(d == null ? 1 : d).replace('.', ','); }
+function plural(n, one, few, many){
+  const a = Math.abs(n) % 100, b = a % 10;
+  return n + ' ' + (a > 10 && a < 20 ? many : b === 1 ? one : b > 1 && b < 5 ? few : many);
+}
+
+const ALIAS = {'рататуй':'ratatouille','омлет':'omelette','лосось':'saumon','креветк':'crevettes',
+  'чечевиц':'lentilles','курица':'poulet','курицу':'poulet','салат':'salade','яйц':'oeufs'};
+
+function norm(s){
+  let t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  for (const k in ALIAS) if (t.indexOf(k) >= 0) t += ' ' + ALIAS[k];
+  return ' ' + t.replace(/[^a-zа-яё0-9]+/gi,' ').trim() + ' ';
+}
+
+function findRecipe(text){
+  if (!D || !D.recipes || !text) return null;
+  const t = norm(text);
+  let best = null, bestLen = 0;
+  for (const r of D.recipes){
+    for (const w of norm(r.title).trim().split(' ')){
+      if (w.length >= 5 && t.indexOf(' ' + w) >= 0 && w.length > bestLen){ best = r; bestLen = w.length; }
+    }
+  }
+  return best;
+}
+
+/* ─────────────── вкладка «Сегодня» ─────────────── */
+
+function viewToday(){
+  if (!D) return viewEmpty();
+  const day = today();
+  const d = dayFor(day);
+  const p = d ? d.period : currentPeriod();
+
+  if (!d){
+    const gap = p && p.start > day
+      ? 'Период «' + esc(p.title) + '» начинается ' + human(p.start) + '.'
+      : (p ? 'Период «' + esc(p.title) + '» закончился ' + human(p.end || p.start) + '.' : '');
+    return '<div class="card"><h2>На сегодня плана нет</h2><p class="muted small">' + gap +
+      ' Заведи новый период в «Ещё» — расписание и чек-лист задаются там, дневник продолжится без разрыва.</p>' +
+      '<button class="btn acc" onclick="go(\'more\')">Открыть настройки</button></div>' + logForm(day, null);
+  }
+
+  const e = S.log[day] || {};
+  let h = '';
+
+  h += '<div class="card">';
+  h += '<div class="day-head"><span class="n">День ' + d.n + '</span>' +
+       '<span class="muted small">' + esc(humanFull(day)) +
+       (d.period.kind === 'plan' && d.period.days ? ' · из ' + d.period.days.length : '') + '</span></div>';
+  h += '<div class="chips">';
+  if (d.gym) h += '<span class="chip">Зал: ' + esc(d.gym) + '</span>';
+  if (d.topic) h += '<span class="chip b">' + esc(d.topic) + '</span>';
+  h += '</div>';
+  const meals = [['Обед', d.lunch], ['Ужин', d.dinner]].filter(function(m){ return m[1]; });
+  if (meals.length){
+    h += '<div class="chips">';
+    for (const m of meals){
+      const r = findRecipe(m[1]);
+      h += r
+        ? '<button class="chip" onclick="openR(\'' + r.id + '\')">' + m[0] + ': ' + esc(m[1]) + ' →</button>'
+        : '<span class="chip">' + m[0] + ': ' + esc(m[1]) + '</span>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+
+  if (d.period.schedule && d.period.schedule.length){
+    h += '<div class="card"><h2>Распорядок</h2><ul class="sched">';
+    for (const s of d.period.schedule) h += '<li><span class="t">' + esc(s.t) + '</span><span>' + s.s + '</span></li>';
+    h += '</ul></div>';
+  }
+
+  if (d.html) h += '<div class="card"><h2>Сегодня по плану</h2><div class="md">' + d.html + '</div></div>';
+
+  h += checklist(day, d.period);
+  h += logForm(day, d.period);
+  return h;
+}
+
+function checklist(day, p){
+  const items = (p && p.checklist) || [];
+  if (!items.length) return '';
+  const e = S.log[day] || {};
+  const ok = e.pid === p.id ? (e.check || {}) : {};
+  const done = items.filter(function(_, i){ return ok[i]; }).length;
+  let h = '<div class="card"><h2>Чек-лист дня <span class="muted small">' + done + ' из ' + items.length + '</span></h2><ul class="check">';
+  items.forEach(function(t, i){
+    h += '<li><label><input type="checkbox" data-check="' + i + '"' + (ok[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label></li>';
+  });
+  return h + '</ul></div>';
+}
+
+function logForm(day, p){
+  const e = S.log[day] || {};
+  let h = '<div class="card"><h2>Запись за ' + human(day) + '</h2><div class="grid">';
+  h += field('w', 'Вес, кг', e.w, 'decimal');
+  h += field('sleep', 'Сон, ч', e.sleep, 'decimal');
+  h += field('mood', 'Самочувствие 1–5', e.mood, 'numeric');
+  h += field('neck', 'Шея, см', e.neck, 'decimal');
+  h += field('waist', 'Талия, см', e.waist, 'decimal');
+  h += '</div>';
+  h += '<div class="f" style="margin-top:10px"><label>Заметка</label>' +
+       '<textarea data-log="note" style="min-height:64px">' + esc(e.note || '') + '</textarea></div>';
+  h += '<div class="saved" id="saved"></div>';
+  h += '</div>';
+  return h;
+}
+
+function field(k, label, v, mode){
+  return '<div class="f"><label>' + label + '</label>' +
+    '<input type="text" inputmode="' + mode + '" data-log="' + k + '" value="' + (v == null ? '' : esc(String(v).replace('.',','))) + '"></div>';
+}
+
+function viewEmpty(){
+  return '<div class="empty"><p>Здесь пусто, пока не загружен твой файл с планом. Он лежит отдельно от приложения — в репозитории его нет.</p>' +
+    '<button class="btn acc" onclick="pick()">Загрузить plan16-data.json</button>' +
+    '<p class="hint">На iPhone: «Файлы» → iCloud Drive → папка с планом.</p></div>';
+}
+
+/* ─────────────── вкладка «План» ─────────────── */
+
+function viewPlan(){
+  if (!D) return viewEmpty();
+  const p = currentPeriod();
+  if (!p) return '<div class="card"><p class="muted">Ни одного периода не заведено.</p></div>';
+  let h = '';
+
+  if (p.kind === 'weekly'){
+    h += '<div class="card tight"><ul class="list">';
+    (p.week || []).forEach(function(w, i){
+      const cur = dowMon(today()) === i;
+      h += '<li' + (cur ? ' class="now"' : '') + '><button><span class="k">' + WD_SHORT[i] + '</span>' +
+        '<span class="v">' + esc(w.gym || '—') + (w.topic ? '<small>' + esc(w.topic) + '</small>' : '') + '</span></button></li>';
+    });
+    h += '</ul></div>';
+  } else {
+    h += '<div class="card tight"><ul class="list">';
+    for (const d of (p.days || [])){
+      const cur = d.date === today();
+      const on = openDay === d.n;
+      h += '<li' + (cur ? ' class="now"' : '') + '>';
+      h += '<button onclick="toggleDay(' + d.n + ')"><span class="k">' + d.n + ' · ' + human(d.date).replace(/ .*/,'.' + String(parse(d.date).getMonth()+1).padStart(2,'0')) + '</span>' +
+        '<span class="v">' + esc(d.topic || '—') + '<small>' + esc(d.gym || '') +
+        (d.lunch ? ' · ' + esc(d.lunch) : '') + '</small></span></button>';
+      if (on) h += '<div class="md" style="padding:0 16px 14px">' + d.html + '</div>';
+      h += '</li>';
+    }
+    h += '</ul></div>';
+  }
+
+  if (p.skeletonHtml) h += '<div class="card"><h2>Скелет дня</h2><div class="md">' + p.skeletonHtml + '</div></div>';
+  for (const x of (p.extras || [])) h += '<div class="card"><h2>' + esc(x.title) + '</h2><div class="md">' + x.html + '</div></div>';
+  return h;
+}
+
+function toggleDay(n){ openDay = openDay === n ? null : n; render(); }
+
+/* ─────────────── вкладка «Кухня» ─────────────── */
+
+function viewFood(){
+  if (!D) return viewEmpty();
+  if (openRecipe){
+    const r = D.recipes.find(function(x){ return x.id === openRecipe; });
+    if (r){
+      let h = '<button class="btn" onclick="openR(null)">← Все блюда</button><div style="height:12px"></div>';
+      h += '<div class="card">';
+      if (r.photo) h += '<img class="photo" src="photos/' + r.photo + '.webp" alt="' + esc(r.title) + '">';
+      h += '<h2>' + esc(r.title) + '</h2><div class="muted small" style="margin:-6px 0 10px">' + esc(r.group) + '</div>';
+      h += '<div class="md">' + r.html + '</div></div>';
+      return h;
+    }
+  }
+
+  let h = '';
+  const withPhoto = D.recipes.filter(function(r){ return r.photo; });
+  const rest = D.recipes.filter(function(r){ return !r.photo; });
+
+  h += '<div class="tiles">';
+  for (const r of withPhoto){
+    h += '<button class="tile" onclick="openR(\'' + r.id + '\')">' +
+      '<img loading="lazy" src="photos/' + r.photo + '.webp" alt=""><span>' + esc(r.title) + '</span></button>';
+  }
+  h += '</div>';
+
+  let group = '';
+  h += '<div style="height:12px"></div><div class="card tight"><ul class="list">';
+  for (const r of rest){
+    if (r.group !== group){
+      group = r.group;
+      h += '<li style="padding:10px 16px 4px" class="muted small">' + esc(group) + '</li>';
+    }
+    h += '<li><button onclick="openR(\'' + r.id + '\')"><span class="v">' + esc(r.title) + '</span></button></li>';
+  }
+  h += '</ul></div>';
+
+  for (const doc of (D.docs || [])){
+    h += '<div class="card"><h2>' + esc(doc.title) + '</h2>';
+    if (doc.html) h += '<div class="md">' + doc.html + '</div>';
+    for (const s of doc.sections){
+      if (s.level === 1){
+        h += '<h3>' + esc(s.title) + '</h3>';
+        if (s.html) h += '<div class="md">' + s.html + '</div>';
+      } else {
+        h += '<details><summary>' + esc(s.title) + '</summary><div class="md">' + s.html + '</div></details>';
+      }
+    }
+    h += '</div>';
+  }
+  return h;
+}
+
+function openR(id){ openRecipe = id; tab = 'food'; render(); window.scrollTo(0,0); }
+
+/* ─────────────── вкладка «Дневник» ─────────────── */
+
+function entries(){
+  return Object.keys(S.log).sort().map(function(k){ return Object.assign({date:k}, S.log[k]); });
+}
+
+function avg7(list, i){
+  const from = shift(list[i].date, -6);
+  const win = list.filter(function(x, j){ return j <= i && x.date >= from && x.w != null; });
+  if (!win.length) return null;
+  return win.reduce(function(s,x){ return s + x.w; }, 0) / win.length;
+}
+
+function viewLog(){
+  const list = entries().filter(function(e){ return e.w != null; });
+  let h = '';
+
+  if (list.length){
+    const last = avg7(list, list.length-1);
+    const first = list[0].w;
+    const delta = last - first;
+    h += '<div class="card">';
+    h += '<div class="big">' + fmt(last) + ' <span>кг · среднее за 7 дней</span></div>';
+    h += '<div class="delta ' + (delta <= 0 ? 'down' : 'up') + '">' +
+      (delta <= 0 ? '−' : '+') + fmt(Math.abs(delta)) + ' кг от старта ' + human(list[0].date) +
+      ' · ' + plural(list.length, 'запись', 'записи', 'записей') + '</div>';
+    h += chart(list);
+    h += '<p class="hint">Одна цифра ничего не значит: вода гуляет на 1–2 кг. Смотри линию среднего.</p>';
+    h += '</div>';
+  } else {
+    h += '<div class="card"><p class="muted">Ни одного взвешивания. Запиши вес на вкладке «Сегодня» — график появится со второй записи.</p></div>';
+  }
+
+  const meas = entries().filter(function(e){ return e.neck != null || e.waist != null; });
+  if (meas.length){
+    h += '<div class="card"><h2>Замеры</h2><div class="md"><table><tr><th>Дата</th><th>Шея</th><th>Талия</th></tr>';
+    for (const e of meas) h += '<tr><td>' + human(e.date) + '</td><td>' + fmt(e.neck) + '</td><td>' + fmt(e.waist) + '</td></tr>';
+    h += '</table></div></div>';
+  }
+
+  const all = entries();
+  if (all.length){
+    h += '<div class="card tight"><ul class="list">';
+    for (const e of all.slice().reverse()){
+      const done = e.check ? Object.keys(e.check).filter(function(k){ return e.check[k]; }).length : 0;
+      const bits = [];
+      if (e.w != null) bits.push(fmt(e.w) + ' кг');
+      if (e.sleep != null) bits.push('сон ' + fmt(e.sleep) + ' ч');
+      if (e.mood != null) bits.push('сам. ' + e.mood);
+      if (done) bits.push('чек-лист ' + done);
+      h += '<li><button onclick="editDay(\'' + e.date + '\')"><span class="k">' + human(e.date) + '</span>' +
+        '<span class="v">' + (bits.join(' · ') || '—') + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span></button></li>';
+    }
+    h += '</ul></div>';
+  }
+
+  h += '<div class="card"><h2>Копия</h2><p class="small muted">Записи лежат в браузере. Safari чистит хранилище сайта после недели без визитов, поэтому копию стоит сохранять раз в несколько дней. В файл попадают и заведённые тобой периоды.</p>' +
+    '<div class="row2"><button class="btn" onclick="exportLog()">Сохранить</button><button class="btn" onclick="pick()">Загрузить</button></div></div>';
+  return h;
+}
+
+function chart(list){
+  const W = 320, H = 150, PL = 34, PR = 6, PT = 10, PB = 18;
+  const ws = list.map(function(e){ return e.w; });
+  const avgs = list.map(function(_, i){ return avg7(list, i); });
+  let lo = Math.min.apply(null, ws), hi = Math.max.apply(null, ws);
+  if (hi - lo < 2){ const m = (hi+lo)/2; lo = m-1; hi = m+1; }
+  const pad = (hi-lo) * 0.12; lo -= pad; hi += pad;
+  const n = list.length;
+  const x = function(i){ return n < 2 ? PL : PL + i * (W-PL-PR) / (n-1); };
+  const y = function(v){ return PT + (hi-v) * (H-PT-PB) / (hi-lo); };
+
+  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
+  for (let g = 0; g < 3; g++){
+    const v = lo + (hi-lo) * g / 2;
+    s += '<line x1="' + PL + '" y1="' + y(v).toFixed(1) + '" x2="' + (W-PR) + '" y2="' + y(v).toFixed(1) +
+         '" stroke="var(--line)" stroke-width="1"/>' +
+         '<text x="2" y="' + (y(v)+3.5).toFixed(1) + '" font-size="9" fill="var(--muted)">' + fmt(v,0) + '</text>';
+  }
+  s += '<polyline fill="none" stroke="var(--line)" stroke-width="1.5" points="' +
+    list.map(function(e,i){ return x(i).toFixed(1) + ',' + y(e.w).toFixed(1); }).join(' ') + '"/>';
+  s += '<polyline fill="none" stroke="var(--a1)" stroke-width="2.5" stroke-linejoin="round" points="' +
+    avgs.map(function(v,i){ return v == null ? '' : x(i).toFixed(1) + ',' + y(v).toFixed(1); }).filter(Boolean).join(' ') + '"/>';
+  for (let i = 0; i < n; i++) s += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(ws[i]).toFixed(1) + '" r="2" fill="var(--muted)"/>';
+  s += '<text x="' + PL + '" y="' + (H-4) + '" font-size="9" fill="var(--muted)">' + human(list[0].date) + '</text>';
+  if (n > 1) s += '<text x="' + (W-PR) + '" y="' + (H-4) + '" font-size="9" fill="var(--muted)" text-anchor="end">' + human(list[n-1].date) + '</text>';
+  return s + '</svg>';
+}
+
+function editDay(date){
+  const view = document.getElementById('view');
+  view.innerHTML = '<button class="btn" onclick="go(\'log\')">← Дневник</button><div style="height:12px"></div>' +
+    logForm(date, periodFor(date));
+  bind(date);
+  window.scrollTo(0,0);
+}
+
+/* ─────────────── вкладка «Ещё» ─────────────── */
+
+function viewMore(){
+  let h = '';
+
+  h += '<div class="card"><h2>Мой файл</h2>';
+  if (D){
+    const p = periods();
+    h += '<p class="small muted">Загружен ' + esc(D.generated || '—') + ' · ' +
+      plural((D.recipes||[]).length, 'блюдо', 'блюда', 'блюд') + ' · ' +
+      plural(p.length, 'период', 'периода', 'периодов') + '</p>';
+  } else {
+    h += '<p class="small muted">Файл не загружен — приложение пустое.</p>';
+  }
+  h += '<button class="btn acc" onclick="pick()">Загрузить файл</button>';
+  h += '<p class="hint">Одна кнопка на оба файла: и на план, и на копию дневника — приложение само разберётся, что внутри.</p></div>';
+
+  h += '<div class="card"><h2>Периоды</h2>' +
+    '<p class="small muted">Приложение показывает тот период, в который попадает сегодняшняя дата. Когда рывок кончится, заведи обычный — дневник и кухня останутся общими.</p>' +
+    '<div class="card tight" style="margin:0 0 10px"><ul class="list">';
+  for (const p of periods()){
+    const mine = (S.periods || []).some(function(x){ return x.id === p.id; });
+    const cur = periodFor(today()) && periodFor(today()).id === p.id;
+    h += '<li' + (cur ? ' class="now"' : '') + '><button ' + (mine ? 'onclick="editPeriod(\'' + p.id + '\')"' : 'disabled style="opacity:.75"') + '>' +
+      '<span class="v">' + esc(p.title) + '<small>' + human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') +
+      (mine ? '' : ' · из файла') + '</small></span>' + (mine ? '<span class="muted small">изменить</span>' : '') + '</button></li>';
+  }
+  h += '</ul></div><button class="btn" onclick="editPeriod(null)">Новый период</button></div>';
+
+  h += '<div class="card"><h2>Дневник</h2><div class="row2">' +
+    '<button class="btn" onclick="exportLog()">Сохранить копию</button>' +
+    '<button class="btn" onclick="wipe()">Стереть всё</button></div></div>';
+
+  return h;
+}
+
+function editPeriod(id){
+  const p = (S.periods || []).find(function(x){ return x.id === id; }) || {
+    id: 'p' + Date.now(), kind: 'weekly', title: '', start: today(), end: '',
+    schedule: [], checklist: [], week: [0,1,2,3,4,5,6].map(function(){ return {gym:'',topic:'',lunch:'',dinner:'',note:''}; })
+  };
+  const sched = (p.schedule || []).map(function(s){ return s.t + ' ' + String(s.s).replace(/<[^>]+>/g,''); }).join('\n');
+
+  let h = '<button class="btn" onclick="go(\'more\')">← Назад</button><div style="height:12px"></div>';
+  h += '<div class="card"><h2>Период</h2>';
+  h += '<div class="f"><label>Название</label><input id="p-title" value="' + esc(p.title) + '" placeholder="Обычный режим"></div>';
+  h += '<div class="row2" style="margin-top:10px">' +
+    '<div class="f"><label>Начало</label><input id="p-start" type="date" value="' + esc(p.start) + '"></div>' +
+    '<div class="f"><label>Конец, можно пусто</label><input id="p-end" type="date" value="' + esc(p.end || '') + '"></div></div>';
+  h += '</div>';
+
+  h += '<div class="card"><h2>Распорядок</h2><p class="small muted">По строке на пункт: время, пробел, что делаешь.</p>' +
+    '<textarea id="p-sched" placeholder="07:00 Подъём, весы&#10;08:30 Дорога&#10;19:00 Ужин">' + esc(sched) + '</textarea></div>';
+
+  h += '<div class="card"><h2>Чек-лист дня</h2><p class="small muted">По строке на пункт.</p>' +
+    '<textarea id="p-check" placeholder="Взвесился&#10;10 000 шагов&#10;Белок 200 г">' + esc((p.checklist||[]).join('\n')) + '</textarea></div>';
+
+  h += '<div class="card"><h2>Неделя</h2><p class="small muted">Что в этот день недели: нагрузка, тема, заметка.</p>';
+  for (let i = 0; i < 7; i++){
+    const w = (p.week || [])[i] || {};
+    h += '<h3>' + WD_SHORT[i] + '</h3><div class="row2">' +
+      '<div class="f"><input id="w-gym-' + i + '" value="' + esc(w.gym || '') + '" placeholder="Зал / кардио / отдых"></div>' +
+      '<div class="f"><input id="w-topic-' + i + '" value="' + esc(w.topic || '') + '" placeholder="Тема"></div></div>' +
+      '<div class="f" style="margin-top:8px"><input id="w-note-' + i + '" value="' + esc(w.note || '') + '" placeholder="Заметка"></div>';
+  }
+  h += '</div>';
+
+  h += '<button class="btn acc" onclick="savePeriod(\'' + p.id + '\')">Сохранить период</button>';
+  if ((S.periods || []).some(function(x){ return x.id === p.id; })){
+    h += '<button class="btn" onclick="delPeriod(\'' + p.id + '\')">Удалить период</button>';
+  }
+
+  document.getElementById('view').innerHTML = h;
+  document.getElementById('h-title').textContent = 'Период';
+  document.getElementById('h-sub').textContent = 'Своё расписание';
+  window.scrollTo(0,0);
+}
+
+function savePeriod(id){
+  const v = function(x){ const el = document.getElementById(x); return el ? el.value.trim() : ''; };
+  const p = {
+    id: id, kind: 'weekly',
+    title: v('p-title') || 'Мой режим',
+    start: v('p-start') || today(),
+    end: v('p-end'),
+    schedule: v('p-sched').split('\n').map(function(line){
+      const m = line.trim().match(/^(\d{1,2}[:.]\d{2})\s+(.+)$/);
+      return m ? {t: m[1].replace('.',':'), s: esc(m[2])} : null;
+    }).filter(Boolean),
+    checklist: v('p-check').split('\n').map(function(s){ return s.trim(); }).filter(Boolean),
+    week: [0,1,2,3,4,5,6].map(function(i){
+      return {gym: v('w-gym-'+i), topic: v('w-topic-'+i), lunch: '', dinner: '', note: v('w-note-'+i)};
+    })
+  };
+  S.periods = (S.periods || []).filter(function(x){ return x.id !== id; });
+  S.periods.push(p);
+  save();
+  go('more');
+}
+
+function delPeriod(id){
+  if (!confirm('Удалить период? Записи дневника останутся.')) return;
+  S.periods = (S.periods || []).filter(function(x){ return x.id !== id; });
+  save();
+  go('more');
+}
+
+function wipe(){
+  if (!confirm('Стереть все записи дневника и заведённые периоды? План и рецепты останутся.')) return;
+  if (!confirm('Точно? Отменить будет нельзя.')) return;
+  S = blank();
+  save();
+  go('log');
+}
+
+/* ─────────────── файлы ─────────────── */
+
+function pick(){ document.getElementById('file').click(); }
+
+document.getElementById('file').addEventListener('change', function(ev){
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = function(){
+    let obj;
+    try { obj = JSON.parse(r.result); }
+    catch(e){ alert('Это не JSON: ' + e.message); return; }
+
+    if (obj.periods && obj.docs){
+      D = obj; saveData();
+      alert('План загружен: ' + (obj.periods[0] ? obj.periods[0].title : '') + '.');
+    } else if (obj.kind === 'journal' || obj.log){
+      const n = Object.keys(obj.log || {}).length;
+      if (!confirm('В файле ' + plural(n, 'запись', 'записи', 'записей') + '. Заменить текущий дневник?')) return;
+      S = Object.assign(blank(), obj);
+      save();
+      alert('Дневник восстановлен.');
+    } else {
+      alert('Не понял, что это за файл: нет ни плана, ни записей.');
+      return;
+    }
+    ev.target.value = '';
+    render();
+  };
+  r.readAsText(f);
+});
+
+function exportLog(){
+  const out = JSON.stringify({v:1, kind:'journal', saved: today(), log: S.log, periods: S.periods, ui: S.ui}, null, 1);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([out], {type:'application/json'}));
+  a.download = 'plan16-journal-' + today() + '.json';
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+
+/* ─────────────── ввод ─────────────── */
+
+function bind(date){
+  const view = document.getElementById('view');
+  const flash = function(){
+    const el = document.getElementById('saved');
+    if (!el) return;
+    el.textContent = 'сохранено';
+    clearTimeout(flash.t);
+    flash.t = setTimeout(function(){ if (el) el.textContent = ''; }, 1200);
+  };
+
+  view.querySelectorAll('[data-log]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      const k = el.dataset.log;
+      if (k === 'note'){
+        const t = el.value.trim();
+        if (t) e.note = t; else delete e.note;
+      } else {
+        const n = num(el.value);
+        if (n == null) delete e[k]; else e[k] = n;
+      }
+      if (!Object.keys(e).length) delete S.log[date];
+      save();
+      flash();
+    });
+  });
+
+  view.querySelectorAll('[data-check]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const p = periodFor(date);
+      const e = S.log[date] || (S.log[date] = {});
+      if (e.pid !== (p && p.id)){ e.pid = p && p.id; e.check = {}; }
+      if (!e.check) e.check = {};
+      if (el.checked) e.check[el.dataset.check] = 1; else delete e.check[el.dataset.check];
+      save();
+      const head = view.querySelector('.check');
+      if (head){
+        const done = view.querySelectorAll('[data-check]:checked').length;
+        const total = view.querySelectorAll('[data-check]').length;
+        const label = head.parentNode.querySelector('h2 .muted');
+        if (label) label.textContent = done + ' из ' + total;
+      }
+    });
+  });
+}
+
+/* ─────────────── каркас ─────────────── */
+
+function render(){
+  const view = document.getElementById('view');
+  const p = currentPeriod();
+
+  document.getElementById('h-title').textContent =
+    tab === 'today' ? (p ? p.title : 'План') :
+    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : tab === 'log' ? 'Дневник' : 'Настройки';
+
+  document.getElementById('h-sub').textContent =
+    tab === 'today' ? humanFull(today()) :
+    tab === 'plan' && p ? human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') :
+    tab === 'food' ? 'Блюда, соусы, рацион' :
+    tab === 'log' ? 'Вес, замеры, чек-листы' : '';
+
+  view.innerHTML =
+    tab === 'today' ? viewToday() :
+    tab === 'plan' ? viewPlan() :
+    tab === 'food' ? viewFood() :
+    tab === 'log' ? viewLog() : viewMore();
+
+  if (tab === 'today') bind(today());
+
+  document.querySelectorAll('nav button').forEach(function(b){
+    b.classList.toggle('on', b.dataset.tab === tab);
+  });
+}
+
+function go(t){ tab = t; openRecipe = null; render(); window.scrollTo(0,0); }
+
+document.querySelectorAll('nav button').forEach(function(b){
+  b.addEventListener('click', function(){ go(b.dataset.tab); });
+});
+
+load();
+render();
+
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
