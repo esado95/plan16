@@ -29,22 +29,31 @@ body{
   font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   -webkit-text-size-adjust:100%;
 }
+/* Шапка и нижнее меню одинаковы на всех экранах: высота задана явно,
+   иначе при пустом подзаголовке содержимое прыгает. */
 header{
-  position:sticky; top:0; z-index:5; background:var(--bg);
-  padding:calc(env(safe-area-inset-top) + 14px) 16px 10px;
+  position:fixed; top:0; left:0; right:0; z-index:5; background:var(--bg);
+  height:calc(env(safe-area-inset-top) + 56px);
+  padding:env(safe-area-inset-top) 16px 0;
   border-bottom:1px solid var(--line);
+  display:flex; flex-direction:column; justify-content:center;
 }
-header h1{margin:0; font-size:17px; font-weight:650; letter-spacing:-.01em}
-header .sub{color:var(--muted); font-size:13px; margin-top:2px}
-main{padding:16px 16px 92px; max-width:720px; margin:0 auto}
+header h1,header .sub{margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+header h1{font-size:17px; font-weight:650; letter-spacing:-.01em; line-height:1.25}
+header .sub{color:var(--muted); font-size:13px; line-height:1.3}
+main{
+  padding:16px 16px calc(env(safe-area-inset-bottom) + 78px);
+  margin:calc(env(safe-area-inset-top) + 57px) auto 0; max-width:720px;
+}
 nav{
   position:fixed; left:0; right:0; bottom:0; z-index:6;
   display:flex; background:var(--card); border-top:1px solid var(--line);
+  height:calc(env(safe-area-inset-bottom) + 54px);
   padding-bottom:env(safe-area-inset-bottom);
 }
 nav button{
   flex:1; background:none; border:0; color:var(--muted); font:inherit; font-size:11px;
-  padding:9px 2px 7px; cursor:pointer; line-height:1.3;
+  padding:8px 2px 6px; cursor:pointer; line-height:1.25;
 }
 nav button b{display:block; font-size:17px; font-weight:400; margin-bottom:1px}
 nav button.on{color:var(--a1)}
@@ -135,6 +144,16 @@ input:focus,textarea:focus,select:focus{outline:2px solid color-mix(in srgb,var(
 /* дневник */
 .big{font-size:34px; font-weight:680; letter-spacing:-.03em; line-height:1.1}
 .big span{font-size:15px; font-weight:400; color:var(--muted)}
+.nums{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:10px 0 4px; text-align:center}
+.nums div{background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:7px 2px}
+.nums b{display:block; font-size:17px; font-weight:650; letter-spacing:-.01em}
+.nums span{font-size:11px; color:var(--muted)}
+.nums div.over b{color:var(--warn)}
+.nums div.under b{color:var(--warn)}
+.note{
+  font-size:13px; margin-top:10px; padding:9px 12px; border-radius:9px;
+  background:color-mix(in srgb,var(--warn) 12%,transparent); color:var(--ink);
+}
 .delta{font-size:14px; margin-top:4px}
 .down{color:var(--a2)} .up{color:var(--warn)}
 svg.chart{width:100%; height:150px; display:block; margin:8px 0 4px}
@@ -186,7 +205,6 @@ details .md{padding:0 0 12px}
   <button data-tab="today" class="on"><b>◉</b>Сегодня</button>
   <button data-tab="plan"><b>▤</b>План</button>
   <button data-tab="food"><b>◍</b>Кухня</button>
-  <button data-tab="log"><b>◔</b>Дневник</button>
   <button data-tab="more"><b>⚙</b>Ещё</button>
 </nav>
 
@@ -362,8 +380,7 @@ function viewToday(){
       '<button class="btn acc" onclick="go(\'more\')">Открыть настройки</button></div>' + logForm(day, null);
   }
 
-  const e = S.log[day] || {};
-  let h = '';
+  let h = logForm(day, d.period);   // день начинается с весов, поэтому запись первая
 
   h += '<div class="card">';
   h += '<div class="day-head"><span class="n">День ' + d.n + '</span>' +
@@ -387,6 +404,7 @@ function viewToday(){
   h += '</div>';
 
   h += repCard(day);
+  h += sideCard(day);
 
   if (d.period.schedule && d.period.schedule.length){
     h += '<div class="card"><h2>Распорядок</h2><ul class="sched">';
@@ -399,8 +417,75 @@ function viewToday(){
   h += frCard(d);
 
   h += checklist(day, d.period);
-  h += logForm(day, d.period);
   return h;
+}
+
+/* ─────────────── гарнир ─────────────── */
+
+function range(text){
+  const m = String(text || '').match(/(\d+)(?:\s*[–—-]\s*(\d+))?/);
+  return m ? [+m[1], m[2] ? +m[2] : +m[1]] : null;
+}
+
+function sideCard(day){
+  const N = D && D.nutrition;
+  if (!N || !N.side || !N.sides || !N.sides.length) return '';
+
+  const base = N.side;
+  const e = S.log[day] || {};
+  const sel = N.sides.find(function(s){ return s.name === e.side; }) || N.sides[0];
+  const g = Math.round(base.kcal / sel.kcal * 100);          // вес под ту же энергию
+  const got = {p: sel.p * g / 100, f: sel.f * g / 100, c: sel.c * g / 100, kcal: sel.kcal * g / 100};
+
+  const plan = N.meals.reduce(function(a, m){
+    const t = m.total || {p:0, f:0, c:0, kcal:0};
+    return {p: a.p + t.p, f: a.f + t.f, c: a.c + t.c, kcal: a.kcal + t.kcal};
+  }, {p:0, f:0, c:0, kcal:0});
+  const tot = {
+    p: plan.p - base.p + got.p, f: plan.f - base.f + got.f,
+    c: plan.c - base.c + got.c, kcal: plan.kcal - base.kcal + got.kcal
+  };
+
+  const np = range(N.norm.p), nc = range(N.norm.c), nk = range(N.norm.kcal);
+  // допуск: по граммам ±5, по калориям ±50 — иначе 1992 ккал при норме 2000 читается как промах
+  const cls = function(v, r, tol){ return !r ? '' : v < r[0] - tol ? ' under' : v > r[1] + tol ? ' over' : ''; };
+
+  let h = '<div class="card"><h2>Гарнир</h2>';
+  h += '<select data-side>';
+  for (const s of N.sides){
+    h += '<option value="' + esc(s.name) + '"' + (s.name === sel.name ? ' selected' : '') + '>' +
+      esc(s.name) + ' — ' + esc(s.ru) + (s.name === base.name ? ' · по плану' : '') + '</option>';
+  }
+  h += '</select>';
+
+  h += '<p class="small" style="margin:10px 0 0"><b>' + g + ' г</b> ' +
+    (/pomme|patate/i.test(sel.name) ? 'сырого' : 'сухого') + ' — столько же энергии, что ' +
+    esc(base.weight) + ' ' + esc(base.name.toLowerCase()) + '.</p>';
+
+  h += '<div class="nums">' +
+    '<div class="' + cls(tot.p, np, 5).trim() + '"><b>' + Math.round(tot.p) + '</b><span>белок</span></div>' +
+    '<div><b>' + Math.round(tot.f) + '</b><span>жиры</span></div>' +
+    '<div class="' + cls(tot.c, nc, 5).trim() + '"><b>' + Math.round(tot.c) + '</b><span>углеводы</span></div>' +
+    '<div class="' + cls(tot.kcal, nk, 50).trim() + '"><b>' + Math.round(tot.kcal) + '</b><span>ккал</span></div>' +
+    '</div>';
+  h += '<p class="small muted">Итог дня с этим гарниром. Норма: белок ' + esc(N.norm.p) +
+    ', жиры ' + esc(N.norm.f) + ', углеводы ' + esc(N.norm.c) + ', ' + esc(N.norm.kcal) + ' ккал.</p>';
+
+  if (np && tot.p < np[0] - 5){
+    const need = Math.round(np[0] - tot.p);
+    const list = (N.proteinFix || []).slice().sort(function(a, b){ return a.kcal - b.kcal; });
+    const fit = list.filter(function(f){ return f.p >= need; });
+    const pick = (fit.length ? fit : list.slice(-1)).slice(0, 2);
+    const cut = Math.round(pick[0].kcal / sel.kcal * 100);
+    h += '<div class="note">Белка меньше нормы на ' + need + ' г. Добери: ' +
+      pick.map(function(f){ return f.what + ' — ' + f.p + ' г, ' + f.kcal + ' ккал'; }).join(' или ') +
+      '. Чтобы остаться в калориях, убавь гарнир примерно на ' + cut + ' г.</div>';
+  }
+  if (nc && tot.c > nc[1] + 5){
+    h += '<div class="note">Углеводов на ' + Math.round(tot.c - nc[1]) +
+      ' г больше нормы. На неделю это тормозит уход воды, на один день — ничего.</div>';
+  }
+  return h + '</div>';
 }
 
 function themeOf(d){
@@ -708,7 +793,7 @@ function chart(list){
 
 function editDay(date){
   const view = document.getElementById('view');
-  view.innerHTML = '<button class="btn" onclick="go(\'log\')">← Дневник</button><div style="height:12px"></div>' +
+  view.innerHTML = '<button class="btn" onclick="go(\'more\')">← Назад</button><div style="height:12px"></div>' +
     logForm(date, periodFor(date));
   bind(date);
   window.scrollTo(0,0);
@@ -717,7 +802,7 @@ function editDay(date){
 /* ─────────────── вкладка «Ещё» ─────────────── */
 
 function viewMore(){
-  let h = '';
+  let h = viewLog();          // дневник живёт здесь: на отдельную вкладку его мало
 
   h += '<div class="card"><h2>Мой файл</h2>';
   if (D){
@@ -743,9 +828,9 @@ function viewMore(){
   }
   h += '</ul></div><button class="btn" onclick="editPeriod(null)">Новый период</button></div>';
 
-  h += '<div class="card"><h2>Дневник</h2><div class="row2">' +
-    '<button class="btn" onclick="exportLog()">Сохранить копию</button>' +
-    '<button class="btn" onclick="wipe()">Стереть всё</button></div></div>';
+  h += '<div class="card"><h2>Сброс</h2>' +
+    '<p class="small muted">Стирает записи дневника и заведённые периоды. План, программа и рецепты останутся.</p>' +
+    '<button class="btn" onclick="wipe()">Стереть всё</button></div>';
 
   return h;
 }
@@ -826,7 +911,7 @@ function wipe(){
   if (!confirm('Точно? Отменить будет нельзя.')) return;
   S = blank();
   save();
-  go('log');
+  go('more');
 }
 
 /* ─────────────── файлы ─────────────── */
@@ -911,6 +996,14 @@ function bind(date){
     });
   });
 
+  view.querySelectorAll('[data-side]').forEach(function(el){
+    el.addEventListener('change', function(){
+      (S.log[date] || (S.log[date] = {})).side = el.value;
+      save();
+      render();
+    });
+  });
+
   view.querySelectorAll('[data-rep]').forEach(function(el){
     el.addEventListener('change', function(){
       const r = S.rep[el.dataset.rep] || (S.rep[el.dataset.rep] = {});
@@ -934,19 +1027,17 @@ function render(){
 
   document.getElementById('h-title').textContent =
     tab === 'today' ? (p ? p.title : 'План') :
-    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : tab === 'log' ? 'Дневник' : 'Настройки';
+    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : 'Ещё';
 
   document.getElementById('h-sub').textContent =
     tab === 'today' ? humanFull(today()) :
-    tab === 'plan' && p ? human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') :
-    tab === 'food' ? 'Блюда, соусы, рацион' :
-    tab === 'log' ? 'Вес, замеры, чек-листы' : '';
+    tab === 'plan' ? (p ? human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') : 'Периодов нет') :
+    tab === 'food' ? 'Блюда, соусы, рацион' : 'Дневник, файл, периоды';
 
   view.innerHTML =
     tab === 'today' ? viewToday() :
     tab === 'plan' ? viewPlan() :
-    tab === 'food' ? viewFood() :
-    tab === 'log' ? viewLog() : viewMore();
+    tab === 'food' ? viewFood() : viewMore();
 
   if (tab === 'today') bind(today());
 

@@ -275,6 +275,109 @@ def build_sprint():
     }
 
 
+# ─────────────────────────── рацион и гарниры ───────────────────────────
+
+# Гарниры на выбор: Б / Ж / У / ккал на 100 г сухого или сырого продукта.
+# Справочные значения (порядок CIQUAL), отклонение от марки к марке ±5 %.
+SIDES = [
+    ("Lentilles",        "чечевица",            25.0,  1.0, 50.0, 320),
+    ("Riz blanc",        "рис",                  7.0,  0.6, 78.0, 350),
+    ("Riz complet",      "рис нешлифованный",    8.0,  2.8, 72.0, 350),
+    ("Pâtes",            "макароны",            12.0,  1.5, 72.0, 355),
+    ("Semoule couscous", "кускус",              12.0,  1.0, 72.0, 350),
+    ("Boulgour",         "булгур",              12.0,  1.5, 76.0, 350),
+    ("Sarrasin",         "гречка",              13.0,  3.4, 72.0, 343),
+    ("Quinoa",           "киноа",               14.0,  6.0, 64.0, 368),
+    ("Pois chiches",     "нут",                 19.0,  6.0, 61.0, 364),
+    ("Haricots rouges",  "красная фасоль",      22.0,  1.5, 60.0, 333),
+    ("Pommes de terre",  "картофель, сырой",     2.0,  0.1, 17.0,  77),
+    ("Patate douce",     "батат, сырой",         1.6,  0.1, 20.0,  86),
+]
+
+# Чем добирать белок, если гарнир его недодаёт: белок и калории на порцию.
+PROTEIN_FIX = [
+    ("банка тунца au naturel, 112 г", 24, 100),
+    ("3 яйца", 19, 234),
+    ("200 г fromage blanc 0%", 16, 94),
+    ("100 г blanc de poulet", 23, 113),
+]
+
+
+def parse_table(text):
+    """Строки markdown-таблицы без разделителя и без звёздочек."""
+    rows = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip().strip("*").strip() for c in line.strip("|").split("|")]
+        if all(set(c) <= set("-: ") for c in cells):
+            continue
+        rows.append(cells)
+    return rows
+
+
+def num_or(text, default=0.0):
+    m = re.search(r"-?\d+(?:[.,]\d+)?", str(text))
+    return float(m.group(0).replace(",", ".")) if m else default
+
+
+def build_nutrition():
+    """Норма дня и два приёма пищи из Рацион.md плюс список гарниров на замену."""
+    text = read("Рацион.md")
+    sections = {}
+    _, h1 = split_headings(text, 1)
+    for _, body in h1:
+        _, h2 = split_headings(body, 2)
+        for title, sub in h2:
+            sections[title] = sub
+
+    norm = {}
+    for row in parse_table(sections.get("Норма дня", "")):
+        key = row[0].lower()
+        if "калори" in key:
+            norm["kcal"] = row[1]
+        elif "белок" in key:
+            norm["p"] = row[1]
+        elif "жир" in key:
+            norm["f"] = row[1]
+        elif "углевод" in key:
+            norm["c"] = row[1]
+
+    meals = []
+    for title in sorted(t for t in sections if t.startswith("Приём")):
+        items, total = [], None
+        for row in parse_table(sections[title])[1:]:
+            entry = {
+                "name": row[0], "weight": row[1],
+                "p": num_or(row[2]), "f": num_or(row[3]),
+                "c": num_or(row[4]), "kcal": num_or(row[5]),
+            }
+            if row[0].lower().startswith("итого"):
+                total = entry
+            else:
+                items.append(entry)
+        meals.append({
+            "title": re.sub(r"\s*·.*$", "", title),
+            "items": items,
+            "total": total,
+        })
+
+    side = None
+    for meal in meals:
+        for i, item in enumerate(meal["items"]):
+            if "lentille" in item["name"].lower():
+                side = dict(item, meal=meal["title"], idx=i)
+
+    return {
+        "norm": norm,
+        "meals": meals,
+        "side": side,
+        "sides": [{"name": n, "ru": ru, "p": p, "f": f, "c": c, "kcal": k} for n, ru, p, f, c, k in SIDES],
+        "proteinFix": [{"what": w, "p": p, "kcal": k} for w, p, k in PROTEIN_FIX],
+    }
+
+
 # ─────────────────────────── кухня и справка ───────────────────────────
 
 PHOTOS = {
@@ -371,6 +474,7 @@ def main():
         "generated": date.today().isoformat(),
         "periods": [sprint],
         "curriculum": curriculum,
+        "nutrition": build_nutrition(),
         "recipes": build_recipes(docs),
         "docs": docs,
     }
@@ -383,6 +487,11 @@ def main():
           % (len(data["periods"]), len(p["days"]), len(p["checklist"]), len(p["schedule"])))
     print("блюд: %d (с фото %d), документов: %d"
           % (len(data["recipes"]), sum(1 for r in data["recipes"] if r["photo"]), len(docs)))
+    n = data["nutrition"]
+    print("рацион: норма %s ккал, приёмов %d, гарнир по плану %s, вариантов замены %d"
+          % (n["norm"].get("kcal", "?"), len(n["meals"]),
+             n["side"]["name"] if n["side"] else "не найден", len(n["sides"])))
+
     mods = sum(len(t["modules"]) for t in curriculum)
     print("программа: %d тем, %d модулей, %d пунктов для проверки"
           % (len(curriculum), mods, sum(len(m["points"]) for t in curriculum for m in t["modules"])))
