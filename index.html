@@ -86,7 +86,18 @@ button.chip{cursor:pointer; font-family:inherit}
 .sched{margin:0; padding:0; list-style:none}
 .sched li{display:flex; gap:12px; padding:6px 0; border-top:1px solid var(--line); font-size:14px}
 .sched li:first-child{border-top:0}
-.sched .t{color:var(--a1); font-variant-numeric:tabular-nums; font-weight:600; min-width:46px}
+.sched .t{color:var(--a1); font-variant-numeric:tabular-nums; font-weight:600; min-width:46px; flex:none}
+.sched li.meal{align-items:flex-start}
+.sched .body{flex:1}
+.sched .tick{display:flex; gap:10px; align-items:flex-start; cursor:pointer}
+.sched .tick input{width:20px; height:20px; margin:1px 0 0; accent-color:var(--a2); flex:none}
+.sched .tick input:checked + span{color:var(--muted)}
+.sched .more{
+  background:none; border:0; color:var(--a1); font:inherit; font-size:13px;
+  padding:5px 0 0 30px; cursor:pointer;
+}
+.sched li.detail{display:block; padding:2px 0 10px 58px; border-top:0}
+.sched li.detail .md table{font-size:13px}
 
 /* чек-лист */
 .check{margin:0; padding:0; list-style:none}
@@ -223,6 +234,7 @@ let D = null;                 // содержимое: периоды, блюд�
 let S = blank();              // дневник и настройки — только моё
 let tab = 'today';
 let openDay = null;           // какой день раскрыт на вкладке «План»
+let openMeal = null;          // какой приём пищи раскрыт в распорядке
 let openRecipe = null;
 
 function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, ui:{}}; }
@@ -404,13 +416,7 @@ function viewToday(){
   h += '</div>';
 
   h += repCard(day);
-  h += sideCard(day);
-
-  if (d.period.schedule && d.period.schedule.length){
-    h += '<div class="card"><h2>Распорядок</h2><ul class="sched">';
-    for (const s of d.period.schedule) h += '<li><span class="t">' + esc(s.t) + '</span><span>' + s.s + '</span></li>';
-    h += '</ul></div>';
-  }
+  h += scheduleCard(d, day);
 
   h += themeCard(d);
   if (d.html) h += '<div class="card"><h2>Сегодня по плану</h2><div class="md">' + d.html + '</div></div>';
@@ -427,65 +433,146 @@ function range(text){
   return m ? [+m[1], m[2] ? +m[2] : +m[1]] : null;
 }
 
-function sideCard(day){
-  const N = D && D.nutrition;
-  if (!N || !N.side || !N.sides || !N.sides.length) return '';
+function nut(){ return D && D.nutrition && D.nutrition.meals ? D.nutrition : null; }
 
-  const base = N.side;
+function chosenSide(day){
+  const N = nut();
+  if (!N || !N.sides || !N.sides.length) return null;
   const e = S.log[day] || {};
-  const sel = N.sides.find(function(s){ return s.name === e.side; }) || N.sides[0];
-  const g = Math.round(base.kcal / sel.kcal * 100);          // вес под ту же энергию
-  const got = {p: sel.p * g / 100, f: sel.f * g / 100, c: sel.c * g / 100, kcal: sel.kcal * g / 100};
+  return N.sides.find(function(s){ return s.name === e.side; }) || N.sides[0];
+}
 
-  const plan = N.meals.reduce(function(a, m){
-    const t = m.total || {p:0, f:0, c:0, kcal:0};
-    return {p: a.p + t.p, f: a.f + t.f, c: a.c + t.c, kcal: a.kcal + t.kcal};
-  }, {p:0, f:0, c:0, kcal:0});
-  const tot = {
-    p: plan.p - base.p + got.p, f: plan.f - base.f + got.f,
-    c: plan.c - base.c + got.c, kcal: plan.kcal - base.kcal + got.kcal
-  };
+/* Вес гарнира под ту же энергию, что у гарнира по плану. */
+function sideGrams(sel){
+  const N = nut();
+  return Math.round(N.side.kcal / sel.kcal * 100);
+}
 
-  const np = range(N.norm.p), nc = range(N.norm.c), nk = range(N.norm.kcal);
-  // допуск: по граммам ±5, по калориям ±50 — иначе 1992 ккал при норме 2000 читается как промах
-  const cls = function(v, r, tol){ return !r ? '' : v < r[0] - tol ? ' under' : v > r[1] + tol ? ' over' : ''; };
+function isSideMeal(meal){
+  const N = nut();
+  return !!(N && N.side && N.side.meal === meal.title);
+}
 
-  let h = '<div class="card"><h2>Гарнир</h2>';
-  h += '<select data-side>';
-  for (const s of N.sides){
-    h += '<option value="' + esc(s.name) + '"' + (s.name === sel.name ? ' selected' : '') + '>' +
-      esc(s.name) + ' — ' + esc(s.ru) + (s.name === base.name ? ' · по плану' : '') + '</option>';
+/* Итог приёма с учётом выбранного гарнира. */
+function mealTotal(meal, day){
+  const N = nut();
+  const t = meal.total || {p:0, f:0, c:0, kcal:0};
+  const out = {p: t.p, f: t.f, c: t.c, kcal: t.kcal};
+  const sel = chosenSide(day);
+  if (isSideMeal(meal) && sel && sel.name !== N.side.name){
+    const g = sideGrams(sel);
+    out.p += sel.p * g / 100 - N.side.p;
+    out.f += sel.f * g / 100 - N.side.f;
+    out.c += sel.c * g / 100 - N.side.c;
+    out.kcal += sel.kcal * g / 100 - N.side.kcal;
   }
-  h += '</select>';
+  return out;
+}
 
-  h += '<p class="small" style="margin:10px 0 0"><b>' + g + ' г</b> ' +
-    (/pomme|patate/i.test(sel.name) ? 'сырого' : 'сухого') + ' — столько же энергии, что ' +
-    esc(base.weight) + ' ' + esc(base.name.toLowerCase()) + '.</p>';
+/* Съедено за день — только по отмеченным приёмам, а не по плану. */
+function eaten(day){
+  const N = nut();
+  const done = (S.log[day] || {}).meals || {};
+  const sum = {p:0, f:0, c:0, kcal:0};
+  if (!N) return sum;
+  N.meals.forEach(function(m, i){
+    if (!done[i + 1]) return;
+    const t = mealTotal(m, day);
+    sum.p += t.p; sum.f += t.f; sum.c += t.c; sum.kcal += t.kcal;
+  });
+  return sum;
+}
 
-  h += '<div class="nums">' +
-    '<div class="' + cls(tot.p, np, 5).trim() + '"><b>' + Math.round(tot.p) + '</b><span>белок</span></div>' +
-    '<div><b>' + Math.round(tot.f) + '</b><span>жиры</span></div>' +
-    '<div class="' + cls(tot.c, nc, 5).trim() + '"><b>' + Math.round(tot.c) + '</b><span>углеводы</span></div>' +
-    '<div class="' + cls(tot.kcal, nk, 50).trim() + '"><b>' + Math.round(tot.kcal) + '</b><span>ккал</span></div>' +
+function scheduleCard(d, day){
+  const p = d.period;
+  if (!p.schedule || !p.schedule.length) return '';
+  const N = nut();
+  const done = (S.log[day] || {}).meals || {};
+
+  let h = '<div class="card"><h2>Распорядок</h2><ul class="sched">';
+  for (const s of p.schedule){
+    const m = N ? /Приём\s*(\d)/.exec(String(s.s).replace(/<[^>]+>/g, '')) : null;
+    const idx = m ? +m[1] : 0;
+    const meal = idx ? N.meals[idx - 1] : null;
+
+    if (!meal){
+      h += '<li><span class="t">' + esc(s.t) + '</span><span>' + s.s + '</span></li>';
+      continue;
+    }
+    h += '<li class="meal"><span class="t">' + esc(s.t) + '</span><span class="body">' +
+      '<label class="tick"><input type="checkbox" data-meal="' + idx + '"' + (done[idx] ? ' checked' : '') +
+      '><span>' + s.s + '</span></label>' +
+      '<button class="more" onclick="toggleMeal(' + idx + ')">' +
+      (openMeal === idx ? 'скрыть состав' : 'состав и гарнир') + '</button></span></li>';
+    if (openMeal === idx) h += '<li class="detail">' + mealDetail(meal, day) + '</li>';
+  }
+  h += '</ul>' + eatenBlock(day) + '</div>';
+  return h;
+}
+
+function toggleMeal(idx){ openMeal = openMeal === idx ? null : idx; render(); }
+
+function mealDetail(meal, day){
+  const N = nut();
+  const sel = chosenSide(day);
+  const swap = isSideMeal(meal) && sel;
+  const g = swap ? sideGrams(sel) : 0;
+
+  let h = '<div class="md"><table><tr><th>Что</th><th>Вес</th><th>Б</th><th>Ж</th><th>У</th><th>Ккал</th></tr>';
+  for (const it of meal.items){
+    const mine = swap && it.name === N.side.name;
+    const row = mine
+      ? {name: sel.name, weight: g + ' г', p: sel.p * g / 100, f: sel.f * g / 100, c: sel.c * g / 100, kcal: sel.kcal * g / 100}
+      : it;
+    h += '<tr><td>' + esc(row.name) + '</td><td>' + esc(row.weight) + '</td><td>' +
+      Math.round(row.p) + '</td><td>' + Math.round(row.f) + '</td><td>' +
+      Math.round(row.c) + '</td><td>' + Math.round(row.kcal) + '</td></tr>';
+  }
+  const t = mealTotal(meal, day);
+  h += '<tr><td><b>Итого</b></td><td></td><td><b>' + Math.round(t.p) + '</b></td><td><b>' +
+    Math.round(t.f) + '</b></td><td><b>' + Math.round(t.c) + '</b></td><td><b>' +
+    Math.round(t.kcal) + '</b></td></tr></table></div>';
+
+  if (swap){
+    h += '<div class="f" style="margin-top:8px"><label>Гарнир</label><select data-side>';
+    for (const s of N.sides){
+      h += '<option value="' + esc(s.name) + '"' + (s.name === sel.name ? ' selected' : '') + '>' +
+        esc(s.name) + ' — ' + esc(s.ru) + (s.name === N.side.name ? ' · по плану' : '') + '</option>';
+    }
+    h += '</select></div>';
+  }
+  return h;
+}
+
+function eatenBlock(day){
+  const N = nut();
+  if (!N) return '';
+  const s = eaten(day);
+  const cell = function(v, norm, label){
+    return '<div><b>' + Math.round(v) + '</b><span>' + label + ' из ' + norm + '</span></div>';
+  };
+  const np = range(N.norm.p), nf = range(N.norm.f), nc = range(N.norm.c), nk = range(N.norm.kcal);
+  let h = '<div class="nums">' +
+    cell(s.p, np ? np[0] : '?', 'белок') +
+    cell(s.f, nf ? nf[1] : '?', 'жиры') +
+    cell(s.c, nc ? nc[1] : '?', 'углеводы') +
+    cell(s.kcal, nk ? nk[1] : '?', 'ккал') +
     '</div>';
-  h += '<p class="small muted">Итог дня с этим гарниром. Норма: белок ' + esc(N.norm.p) +
-    ', жиры ' + esc(N.norm.f) + ', углеводы ' + esc(N.norm.c) + ', ' + esc(N.norm.kcal) + ' ккал.</p>';
 
-  if (np && tot.p < np[0] - 5){
-    const need = Math.round(np[0] - tot.p);
+  const done = (S.log[day] || {}).meals || {};
+  const count = N.meals.filter(function(_, i){ return done[i + 1]; }).length;
+  h += '<p class="small muted">Съедено за день — по отмеченным приёмам, ' +
+    (count ? count + ' из ' + N.meals.length : 'пока ни одного') + '.</p>';
+
+  if (count === N.meals.length && np && s.p < np[0] - 5){
+    const need = Math.round(np[0] - s.p);
     const list = (N.proteinFix || []).slice().sort(function(a, b){ return a.kcal - b.kcal; });
     const fit = list.filter(function(f){ return f.p >= need; });
     const pick = (fit.length ? fit : list.slice(-1)).slice(0, 2);
-    const cut = Math.round(pick[0].kcal / sel.kcal * 100);
-    h += '<div class="note">Белка меньше нормы на ' + need + ' г. Добери: ' +
-      pick.map(function(f){ return f.what + ' — ' + f.p + ' г, ' + f.kcal + ' ккал'; }).join(' или ') +
-      '. Чтобы остаться в калориях, убавь гарнир примерно на ' + cut + ' г.</div>';
+    h += '<div class="note">Оба приёма съедены, а белка не хватает ' + need + ' г. Добери: ' +
+      pick.map(function(f){ return f.what + ' — ' + f.p + ' г, ' + f.kcal + ' ккал'; }).join(' или ') + '.</div>';
   }
-  if (nc && tot.c > nc[1] + 5){
-    h += '<div class="note">Углеводов на ' + Math.round(tot.c - nc[1]) +
-      ' г больше нормы. На неделю это тормозит уход воды, на один день — ничего.</div>';
-  }
-  return h + '</div>';
+  return h;
 }
 
 function themeOf(d){
@@ -751,6 +838,8 @@ function viewLog(){
       if (e.w != null) bits.push(fmt(e.w) + ' кг');
       if (e.sleep != null) bits.push('сон ' + fmt(e.sleep) + ' ч');
       if (e.mood != null) bits.push('сам. ' + e.mood);
+      const meals = e.meals ? Object.keys(e.meals).length : 0;
+      if (meals) bits.push('приёмов ' + meals);
       if (done) bits.push('чек-лист ' + done);
       h += '<li><button onclick="editDay(\'' + e.date + '\')"><span class="k">' + human(e.date) + '</span>' +
         '<span class="v">' + (bits.join(' · ') || '—') + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span></button></li>';
@@ -1002,6 +1091,16 @@ function bind(date){
       (S.log[date] || (S.log[date] = {})).side = el.value;
       save();
       render();
+    });
+  });
+
+  view.querySelectorAll('[data-meal]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (!e.meals) e.meals = {};
+      if (el.checked) e.meals[el.dataset.meal] = 1; else delete e.meals[el.dataset.meal];
+      save();
+      render();                       // пересчитываем «съедено за день»
     });
   });
 
