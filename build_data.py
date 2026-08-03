@@ -401,8 +401,12 @@ def photo_for(title):
     return ""
 
 
-def build_doc(filename, doc_id, title):
-    """Документ → плоский список разделов в порядке текста."""
+def build_doc(filename, doc_id, title, photos=False):
+    """Документ → плоский список разделов в порядке текста.
+
+    photos ставится только основному файлу кухни: фото есть у девяти его блюд,
+    и без флага «Omelette aux champignons» из второго файла забрала бы чужую картинку.
+    """
     text = read(filename)
     intro, h1 = split_headings(text, 1)
     sections = []
@@ -420,7 +424,7 @@ def build_doc(filename, doc_id, title):
                 "level": 2,
                 "title": h2_title,
                 "html": html(h2_body),
-                "photo": photo_for(h2_title),
+                "photo": photo_for(h2_title) if photos else "",
             })
     return {"id": doc_id, "title": title, "html": html(intro), "sections": sections}
 
@@ -432,7 +436,7 @@ def build_recipes(docs):
     """Индекс блюд: карточки, на которые ссылается день. Фото есть только у кухни."""
     out = []
     for doc in docs:
-        if doc["id"] not in ("cuisine", "salades"):
+        if doc["id"] not in ("cuisine", "cuisine2", "salades"):
             continue
         group = ""
         for s in doc["sections"]:
@@ -460,7 +464,8 @@ def build_recipes(docs):
 def main():
     docs = [
         build_doc("Рацион.md", "racion", "Рацион"),
-        build_doc("Французская_кухня.md", "cuisine", "Французская кухня"),
+        build_doc("Французская_кухня.md", "cuisine", "Французская кухня", photos=True),
+        build_doc("Французская_кухня_2.md", "cuisine2", "Ещё блюда"),
         build_doc("Салаты_и_соусы.md", "salades", "Салаты и соусы"),
         build_doc("Вкус.md", "gout", "Вкус"),
         build_doc("Что_это_значит.md", "glossaire", "Что это значит"),
