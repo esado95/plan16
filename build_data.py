@@ -380,22 +380,40 @@ def build_nutrition():
 
 # ─────────────────────────── кухня и справка ───────────────────────────
 
-PHOTOS = {
-    "poulet-basquaise": "01-poulet-basquaise",
-    "piperade": "02-piperade",
-    "omelette": "03-omelette-fines-herbes",
-    "ratatouille": "04-ratatouille",
-    "saumon": "05-saumon-papillote",
-    "crevettes": "06-crevettes-ail-persil",
-    "lentilles": "07-salade-lentilles",
-    "escalope": "08-escalope-moutarde",
-    "vinaigrette": "09-vinaigrette-maison",
-}
+# Ключи нарочно длинные и проверяются по порядку: коротким «omelette»
+# блюдо 25 забрало бы фото блюда 3, а «vinaigrette» — фото соуса у салата из эндивия.
+PHOTOS = [
+    ("poulet-basquaise", "01-poulet-basquaise"),
+    ("piperade", "02-piperade"),
+    ("fines-herbes", "03-omelette-fines-herbes"),
+    ("ratatouille", "04-ratatouille"),
+    ("saumon", "05-saumon-papillote"),
+    ("crevettes", "06-crevettes-ail-persil"),
+    ("salade-de-lentilles", "07-salade-lentilles"),
+    ("escalope", "08-escalope-moutarde"),
+    ("vinaigrette-maison", "09-vinaigrette-maison"),
+    ("poulet-roti", "10-poulet-roti"),
+    ("pot-au-feu", "11-pot-au-feu"),
+    ("blanquette", "12-blanquette-dinde"),
+    ("hachis", "13-hachis-parmentier"),
+    ("cabillaud", "14-cabillaud-provencale"),
+    ("poulet-au-citron", "15-poulet-citron-olives"),
+    ("truite", "16-truite-amandes"),
+    ("salade-nicoise", "17-salade-nicoise"),
+    ("oignon", "18-soupe-oignon"),
+    ("potage-parmentier", "19-potage-parmentier"),
+    ("pistou", "20-soupe-pistou"),
+    ("cocotte", "21-oeufs-cocotte"),
+    ("quiche", "22-quiche-poireaux"),
+    ("chou-fleur", "23-gratin-chou-fleur"),
+    ("tian", "24-tian-legumes"),
+    ("champignons", "25-omelette-champignons"),
+]
 
 
 def photo_for(title):
     s = slug(title)
-    for key, name in PHOTOS.items():
+    for key, name in PHOTOS:
         if key in s:
             return name
     return ""
@@ -455,7 +473,7 @@ def build_recipes(docs):
             out.append({
                 "id": slug(name), "title": name, "group": group,
                 "doc": doc["id"], "sec": s["id"],
-                "photo": s["photo"] if doc["id"] == "cuisine" else "",
+                "photo": s["photo"],          # проставлен в build_doc только тем документам, у кого есть фото
                 "html": s["html"],
             })
     return out
@@ -465,7 +483,7 @@ def main():
     docs = [
         build_doc("Рацион.md", "racion", "Рацион"),
         build_doc("Французская_кухня.md", "cuisine", "Французская кухня", photos=True),
-        build_doc("Французская_кухня_2.md", "cuisine2", "Ещё блюда"),
+        build_doc("Французская_кухня_2.md", "cuisine2", "Ещё блюда", photos=True),
         build_doc("Салаты_и_соусы.md", "salades", "Салаты и соусы"),
         build_doc("Вкус.md", "gout", "Вкус"),
         build_doc("Что_это_значит.md", "glossaire", "Что это значит"),
