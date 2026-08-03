@@ -807,8 +807,10 @@ function viewMore(){
   h += '<div class="card"><h2>Мой файл</h2>';
   if (D){
     const p = periods();
+    const withPhoto = (D.recipes || []).filter(function(r){ return r.photo; }).length;
     h += '<p class="small muted">Загружен ' + esc(D.generated || '—') + ' · ' +
-      plural((D.recipes||[]).length, 'блюдо', 'блюда', 'блюд') + ' · ' +
+      plural((D.recipes||[]).length, 'блюдо', 'блюда', 'блюд') +
+      ', из них с фото ' + withPhoto + ' · ' +
       plural(p.length, 'период', 'периода', 'периодов') + '</p>';
   } else {
     h += '<p class="small muted">Файл не загружен — приложение пустое.</p>';
