@@ -118,6 +118,7 @@ input:focus,textarea:focus,select:focus{outline:2px solid color-mix(in srgb,var(
 .list .k{color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; min-width:58px; flex:none}
 .list .v{flex:1}
 .list .v small{display:block; color:var(--muted); font-size:12.5px}
+.list .chip{flex:none; align-self:center; font-size:12px; padding:3px 8px}
 .list li.now{background:color-mix(in srgb,var(--a1) 7%,transparent)}
 .list li.now .k{color:var(--a1); font-weight:600}
 
@@ -206,7 +207,10 @@ let tab = 'today';
 let openDay = null;           // какой день раскрыт на вкладке «План»
 let openRecipe = null;
 
-function blank(){ return {v:1, kind:'journal', log:{}, periods:[], ui:{}}; }
+function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, ui:{}}; }
+
+const REP = [1, 3, 7];                                            // возврат к теме: назавтра, через три дня, через неделю
+const REP_LABEL = {1:'вчера', 3:'три дня назад', 7:'неделю назад'};
 
 /* ─────────────── даты ─────────────── */
 
@@ -269,6 +273,41 @@ function dayFor(day){
   }
   const d = (p.days || []).find(function(x){ return x.date === day; });
   return d ? Object.assign({period:p}, d) : null;
+}
+
+/* ─────────────── возврат к темам ─────────────── */
+
+function repKey(pid, title){ return pid + '|' + title; }
+
+/* Что сегодня в возврате. Считается от дат, а не от номеров дней,
+   поэтому работает и в недельном периоде, и на стыке двух периодов. */
+function dueOn(day){
+  const out = [];
+  for (const gap of REP){
+    const d = dayFor(shift(day, -gap));
+    if (d && d.topic && d.study !== false){
+      out.push({gap: gap, date: shift(day, -gap), title: d.topic, key: repKey(d.period.id, d.topic)});
+    }
+  }
+  return out;
+}
+
+function repDone(key, gap){ return !!(S.rep[key] || {})[gap]; }
+
+function topicState(title, pid, date){
+  const r = S.rep[repKey(pid, title)] || {};
+  const done = REP.filter(function(g){ return r[g]; }).length;
+  if (r.closed || done >= REP.length) return {t: 'закрыта', c: ' b'};
+  if (date && date > today()) return {t: 'впереди', c: ''};
+  if (date && date === today()) return {t: 'сегодня', c: ''};
+  return {t: 'возвратов ' + done + ' из ' + REP.length, c: ''};
+}
+
+function toggleTopic(key){
+  const r = S.rep[key] || (S.rep[key] = {});
+  if (r.closed) delete r.closed; else r.closed = 1;
+  save();
+  render();
 }
 
 /* ─────────────── мелочи ─────────────── */
@@ -347,17 +386,68 @@ function viewToday(){
   }
   h += '</div>';
 
+  h += repCard(day);
+
   if (d.period.schedule && d.period.schedule.length){
     h += '<div class="card"><h2>Распорядок</h2><ul class="sched">';
     for (const s of d.period.schedule) h += '<li><span class="t">' + esc(s.t) + '</span><span>' + s.s + '</span></li>';
     h += '</ul></div>';
   }
 
+  h += themeCard(d);
   if (d.html) h += '<div class="card"><h2>Сегодня по плану</h2><div class="md">' + d.html + '</div></div>';
+  h += frCard(d);
 
   h += checklist(day, d.period);
   h += logForm(day, d.period);
   return h;
+}
+
+function themeOf(d){
+  return d && d.theme && D && D.curriculum ? D.curriculum[d.theme - 1] : null;
+}
+
+function points(list){
+  return '<ul>' + list.map(function(p){ return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>';
+}
+
+function themeCard(d){
+  const t = themeOf(d);
+  if (!t) return '';
+  let h = '<div class="card"><h2>Тема дня</h2>';
+  h += '<p class="small muted">Прочитал заметку в Obsidian, закрыл, рассказал вслух по пунктам. Что не вспомнилось — открыл и отметил красным.</p>';
+  for (const m of t.modules){
+    h += '<details><summary>' + esc(m.code) + ' · ' + esc(m.title) + '</summary><div class="md">' +
+      '<p class="muted small">' + esc(m.note) + '</p>' + points(m.points) + '</div></details>';
+  }
+  return h + '</div>';
+}
+
+function frCard(d){
+  const t = themeOf(d);
+  if (!t) return '';
+  const mods = t.modules.filter(function(m){ return m.frPoints && m.frPoints.length; });
+  if (!mods.length) return '';
+  let h = '<div class="card"><h2>Французский · 19:30</h2>' +
+    '<p class="small muted">Час на диктофон, по разделам той же темы. Потом прослушать и отметить, где сбивался на русский.</p>';
+  for (const m of mods){
+    h += '<details><summary>' + esc(m.fr || m.code) + '</summary><div class="md">' + points(m.frPoints) + '</div></details>';
+  }
+  return h + '</div>';
+}
+
+function repCard(day){
+  const due = dueOn(day);
+  if (!due.length) return '';
+  const done = due.filter(function(x){ return repDone(x.key, x.gap); }).length;
+  let h = '<div class="card"><h2>Возврат <span class="muted small" id="rep-n">' + done + ' из ' + due.length + '</span></h2>';
+  h += '<p class="small muted">Конспект закрыт, рассказываешь вслух. Что не вспомнилось — открыл и отметил.</p><ul class="check">';
+  for (const x of due){
+    h += '<li><label><input type="checkbox" data-rep="' + esc(x.key) + '" data-gap="' + x.gap + '"' +
+      (repDone(x.key, x.gap) ? ' checked' : '') + '><span>' + esc(x.title) +
+      ' <small class="muted">· ' + REP_LABEL[x.gap] + '</small></span></label></li>';
+  }
+  return h + '</ul></div>';
 }
 
 function checklist(day, p){
@@ -366,7 +456,7 @@ function checklist(day, p){
   const e = S.log[day] || {};
   const ok = e.pid === p.id ? (e.check || {}) : {};
   const done = items.filter(function(_, i){ return ok[i]; }).length;
-  let h = '<div class="card"><h2>Чек-лист дня <span class="muted small">' + done + ' из ' + items.length + '</span></h2><ul class="check">';
+  let h = '<div class="card"><h2>Чек-лист дня <span class="muted small" id="chk-n">' + done + ' из ' + items.length + '</span></h2><ul class="check">';
   items.forEach(function(t, i){
     h += '<li><label><input type="checkbox" data-check="' + i + '"' + (ok[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label></li>';
   });
@@ -431,12 +521,45 @@ function viewPlan(){
     h += '</ul></div>';
   }
 
+  h += topicsCard(p);
   if (p.skeletonHtml) h += '<div class="card"><h2>Скелет дня</h2><div class="md">' + p.skeletonHtml + '</div></div>';
   for (const x of (p.extras || [])) h += '<div class="card"><h2>' + esc(x.title) + '</h2><div class="md">' + x.html + '</div></div>';
   return h;
 }
 
 function toggleDay(n){ openDay = openDay === n ? null : n; render(); }
+
+function topicsCard(p){
+  const items = [];
+  if (p.kind === 'weekly'){
+    (p.week || []).forEach(function(w, i){ if (w.topic) items.push({title: w.topic, when: WD_SHORT[i], date: ''}); });
+  } else {
+    for (const d of (p.days || [])){
+      if (!d.topic || d.study === false) continue;
+      const t = themeOf(d);
+      items.push({
+        title: d.topic, when: human(d.date), date: d.date,
+        sub: t ? t.modules.map(function(m){ return m.code; }).join(' · ') : ''
+      });
+    }
+  }
+  if (!items.length) return '';
+
+  const closed = items.filter(function(x){ return topicState(x.title, p.id, x.date).t === 'закрыта'; }).length;
+  let h = '<div class="card"><h2>Программа <span class="muted small">' + closed + ' из ' + items.length + ' закрыто</span></h2>' +
+    '<p class="small muted">Темы идут в том же порядке, что на курсах. Экзамены, проект, английский и мастерская CV в повторение не входят. ' +
+    'Возвраты отмечаются на вкладке «Сегодня»: назавтра, через три дня, через неделю. Три отметки закрывают тему сами, нажатие на строку — вручную.</p></div>';
+  h += '<div class="card tight"><ul class="list">';
+  for (const x of items){
+    const st = topicState(x.title, p.id, x.date);
+    h += '<li' + (x.date === today() ? ' class="now"' : '') + '>' +
+      '<button onclick="toggleTopic(\'' + esc(repKey(p.id, x.title)).replace(/'/g, "\\'") + '\')">' +
+      '<span class="k">' + esc(x.when) + '</span>' +
+      '<span class="v">' + esc(x.title) + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</span>' +
+      '<span class="chip' + st.c + '">' + st.t + '</span></button></li>';
+  }
+  return h + '</ul></div>';
+}
 
 /* ─────────────── вкладка «Кухня» ─────────────── */
 
@@ -739,7 +862,7 @@ document.getElementById('file').addEventListener('change', function(ev){
 });
 
 function exportLog(){
-  const out = JSON.stringify({v:1, kind:'journal', saved: today(), log: S.log, periods: S.periods, ui: S.ui}, null, 1);
+  const out = JSON.stringify({v:1, kind:'journal', saved: today(), log: S.log, rep: S.rep, periods: S.periods, ui: S.ui}, null, 1);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([out], {type:'application/json'}));
   a.download = 'plan16-journal-' + today() + '.json';
@@ -784,15 +907,23 @@ function bind(date){
       if (!e.check) e.check = {};
       if (el.checked) e.check[el.dataset.check] = 1; else delete e.check[el.dataset.check];
       save();
-      const head = view.querySelector('.check');
-      if (head){
-        const done = view.querySelectorAll('[data-check]:checked').length;
-        const total = view.querySelectorAll('[data-check]').length;
-        const label = head.parentNode.querySelector('h2 .muted');
-        if (label) label.textContent = done + ' из ' + total;
-      }
+      count('chk-n', '[data-check]');
     });
   });
+
+  view.querySelectorAll('[data-rep]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const r = S.rep[el.dataset.rep] || (S.rep[el.dataset.rep] = {});
+      if (el.checked) r[el.dataset.gap] = 1; else delete r[el.dataset.gap];
+      save();
+      count('rep-n', '[data-rep]');
+    });
+  });
+
+  function count(id, sel){
+    const label = document.getElementById(id);
+    if (label) label.textContent = view.querySelectorAll(sel + ':checked').length + ' из ' + view.querySelectorAll(sel).length;
+  }
 }
 
 /* ─────────────── каркас ─────────────── */

@@ -19,7 +19,28 @@ import markdown
 
 # где лежат исходные заметки; путь можно переопределить переменной окружения
 SRC = Path(os.environ.get("PLAN16_SRC", Path(__file__).resolve().parent.parent / "plan-16"))
+COURSE = Path(os.environ.get("PLAN16_COURSE", Path(__file__).resolve().parent.parent / "Cours_RU"))
+COURSE_FR = Path(os.environ.get("PLAN16_COURSE_FR", COURSE.parent / "Cours"))
 OUT = Path(__file__).parent / "plan16-data.json"
+
+# Темы повторения: модули курса, сгруппированные по смыслу, порядок курса сохранён.
+# Из программы убраны экзамены REA (17, 21, 23, 35), проект (01), английский (07, 14, 19, 32)
+# и мастерская CV (13) — повторяется только теория.
+THEMES = [
+    ("Матчасть, модель OSI и виртуализация", [2, 3, 4]),
+    ("IPv4, CIDR и маршрутизация", [5, 6]),
+    ("DHCP: Windows Server и Cisco", [8, 9]),
+    ("DHCP на нескольких роутерах, DNS, Web и FTP", [10, 11]),
+    ("VLSM и защита Cisco: SSH и ACL", [12]),
+    ("Active Directory: установка, права, AGDLP", [15]),
+    ("Групповые политики GPO", [16]),
+    ("Развёртывание постов WDS и анализ трафика", [18, 20]),
+    ("NAT и PAT: Windows и Cisco", [22, 24]),
+    ("Debian: установка, сеть и SSH", [25, 26]),
+    ("Debian: пользователи, права, пакеты и systemd", [27, 28]),
+    ("Debian: DHCP-сервер, Samba и TP «Цитадель»", [29, 30]),
+    ("Защита Debian и кластеры Windows и Proxmox", [31, 33, 34]),
+]
 
 YEAR = 2026
 MONTHS = {
@@ -117,6 +138,7 @@ def parse_day(title, body):
 
     gym = grab("Зал")
     topic = grab("Тема")
+    study = bool(topic)   # в очередь повторения идут только настоящие темы
     if not topic:
         # дни 14 и 15 вместо темы несут одиночную пометку: **Самоэкзамен**, **Финал**
         for chunk in re.findall(r"\*\*(.+?)\*\*", meta_line):
@@ -130,10 +152,71 @@ def parse_day(title, body):
         "weekday": weekday,
         "gym": gym,
         "topic": topic,
+        "study": study,
         "lunch": grab("Обед"),
         "dinner": grab("Ужин"),
-        "html": html(rest),
+        "html": html(strip_old_topics(rest)),
     }
+
+
+# ─────────────────────────── программа курса ───────────────────────────
+
+# абзацы, привязанные к прежним темам плана: их место занимает программа курса
+DROP = re.compile(r"^\*\*(Возврат|Тема|Заход 2|Французский|21:00 · 15 минут)|Слабое место №")
+
+
+def strip_old_topics(body):
+    blocks = re.split(r"\n\s*\n", body.strip())
+    return "\n\n".join(b for b in blocks if not DROP.match(b.strip()))
+
+
+def read_module(path):
+    """Заметка курса → номер, код, название и список разделов для проверки вслух."""
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"(\d+)_(.+?)_(?:\d|RU)", path.stem)
+    n = int(m.group(1)) if m else 0
+    code = m.group(2).replace("_", " ") if m else path.stem
+
+    title = ""
+    head = re.search(r"^#\s+(.+)$", text, re.M)
+    if head:
+        title = re.sub(r"\s*-\s*\d{2}\.\d{2}\.\d{4}.*$", "", head.group(1)).strip()
+        title = re.sub(r"^[A-Z0-9 ]+\s*-\s*", "", title).strip() or title
+
+    points = re.findall(r"^##\s+(.+)$", text, re.M)
+    points = [re.sub(r"\s*\(.*?\)\s*$", "", p).strip() for p in points]
+
+    mod = {"n": n, "code": code, "title": title, "note": path.name, "points": points[:14]}
+
+    # французские формулировки той же темы — для вечернего блока на диктофон
+    fr = sorted(COURSE_FR.glob("%02d_*.md" % n)) if COURSE_FR.exists() else []
+    if fr:
+        text_fr = fr[0].read_text(encoding="utf-8")
+        head_fr = re.search(r"^#\s+(.+)$", text_fr, re.M)
+        mod["fr"] = re.sub(r"\s*-\s*\d{2}\.\d{2}\.\d{4}.*$", "", head_fr.group(1)).strip() if head_fr else ""
+        mod["frPoints"] = [re.sub(r"\s*\(.*?\)\s*$", "", p).strip()
+                           for p in re.findall(r"^##\s+(.+)$", text_fr, re.M)][:8]
+    return mod
+
+
+def build_curriculum():
+    if not COURSE.exists():
+        print("  ! папка курса не найдена: %s" % COURSE)
+        return []
+    modules = {}
+    for path in sorted(COURSE.glob("*.md")):
+        mod = read_module(path)
+        if mod["n"]:
+            modules[mod["n"]] = mod
+
+    out = []
+    for i, (title, nums) in enumerate(THEMES, 1):
+        picked = [modules[n] for n in nums if n in modules]
+        missing = [n for n in nums if n not in modules]
+        if missing:
+            print("  ! в теме «%s» нет модулей: %s" % (title, missing))
+        out.append({"i": i, "title": title, "modules": picked})
+    return out
 
 
 def build_sprint():
@@ -152,6 +235,15 @@ def build_sprint():
 
     _, day_parts = split_headings(sec["Дни"], 2)
     days = [parse_day(t, b) for t, b in day_parts]
+
+    # темы дней берутся из программы курса, а не из плана: порядок курсовой
+    curriculum = build_curriculum()
+    study = [d for d in days if d["study"]]
+    if len(study) != len(curriculum):
+        print("  ! учебных дней %d, тем %d — часть останется без темы" % (len(study), len(curriculum)))
+    for d, theme in zip(study, curriculum):
+        d["topic"] = theme["title"]
+        d["theme"] = theme["i"]
 
     checklist = re.findall(r"^- \[ \]\s*(.+)$", sec["Чек-лист дня"], re.M)
 
@@ -179,6 +271,7 @@ def build_sprint():
         "checklist": checklist,
         "days": days,
         "extras": extras,
+        "curriculum": curriculum,
     }
 
 
@@ -270,10 +363,14 @@ def main():
         build_doc("Что_это_значит.md", "glossaire", "Что это значит"),
     ]
 
+    sprint = build_sprint()
+    curriculum = sprint.pop("curriculum")           # программа общая, а не свойство рывка
+
     data = {
         "v": 1,
         "generated": date.today().isoformat(),
-        "periods": [build_sprint()],
+        "periods": [sprint],
+        "curriculum": curriculum,
         "recipes": build_recipes(docs),
         "docs": docs,
     }
@@ -286,6 +383,9 @@ def main():
           % (len(data["periods"]), len(p["days"]), len(p["checklist"]), len(p["schedule"])))
     print("блюд: %d (с фото %d), документов: %d"
           % (len(data["recipes"]), sum(1 for r in data["recipes"] if r["photo"]), len(docs)))
+    mods = sum(len(t["modules"]) for t in curriculum)
+    print("программа: %d тем, %d модулей, %d пунктов для проверки"
+          % (len(curriculum), mods, sum(len(m["points"]) for t in curriculum for m in t["modules"])))
     print("%s — %.1f КБ" % (OUT.name, size))
     for d in p["days"]:
         if not (d["date"] and d["gym"] and d["topic"]):
