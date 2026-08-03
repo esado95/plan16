@@ -540,8 +540,8 @@ function checklist(day, p){
   if (!items.length) return '';
   const e = S.log[day] || {};
   const ok = e.pid === p.id ? (e.check || {}) : {};
-  const done = items.filter(function(_, i){ return ok[i]; }).length;
-  let h = '<div class="card"><h2>Чек-лист дня <span class="muted small" id="chk-n">' + done + ' из ' + items.length + '</span></h2><ul class="check">';
+  // дата уже стоит в карточке записи, счёт видно по галочкам — в заголовке лишнее
+  let h = '<div class="card"><h2>Чек-лист</h2><ul class="check">';
   items.forEach(function(t, i){
     h += '<li><label><input type="checkbox" data-check="' + i + '"' + (ok[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label></li>';
   });
@@ -992,7 +992,6 @@ function bind(date){
       if (!e.check) e.check = {};
       if (el.checked) e.check[el.dataset.check] = 1; else delete e.check[el.dataset.check];
       save();
-      count('chk-n', '[data-check]');
     });
   });
 
