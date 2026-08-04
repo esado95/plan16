@@ -399,6 +399,11 @@ details > .secbody{padding-bottom:8px}
 .stock-tile span{display:block; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .stock-tile b{display:block; margin-top:2px; font:680 17px/1.25 var(--fn)}
 .success-card{border-color:color-mix(in srgb,var(--a2) 45%,var(--line)); background:color-mix(in srgb,var(--a2) 7%,var(--card))}
+.purchase-panel{padding:0;overflow:hidden}.purchase-panel>summary{display:flex;align-items:center;gap:11px;padding:13px 15px}
+.purchase-panel>summary:before{display:none}.purchase-panel>summary .sync-icon{width:34px;height:34px;border-radius:10px}
+.purchase-panel>summary span{flex:1}.purchase-panel>summary b{display:block;font-size:14px}.purchase-panel>summary small{display:block;color:var(--muted);font-weight:400;margin-top:2px}
+.purchase-panel>summary:after{content:'⌄';color:var(--muted);font-size:17px}.purchase-panel[open]>summary:after{transform:rotate(180deg)}
+.purchase-body{padding:0 15px 14px;border-top:1px solid var(--line)}
 .quick-prompts{display:flex; gap:7px; overflow-x:auto; margin:10px -2px 12px; padding:2px; scrollbar-width:none}
 .quick-prompts::-webkit-scrollbar{display:none}.quick-prompts .chip{white-space:nowrap; flex:none}
 .typing{display:inline-flex; gap:4px; align-items:center; min-width:48px}
@@ -817,35 +822,37 @@ function clearAI(){
 function viewAI(){
   const ai = aiState();
   const available = stockList().filter(function(x){ return stockLeft(x.id) > 0; });
-  let h = '<div class="card' + (syncMessage.indexOf('Готово') === 0 ? ' success-card' : '') + '"><div class="sync-head"><div class="sync-icon">✓</div><div><h2>Покупки Lidl</h2>' +
-    '<p class="small muted">Чек сначала показывается для проверки и только потом меняет запасы.</p></div></div>';
-  if (syncMessage) h += '<div class="sync-note">' + esc(syncMessage) + '</div>';
+  let lidl = '<details class="card purchase-panel' + (syncMessage.indexOf('Готово') === 0 ? ' success-card' : '') + '"' + (syncDraft ? ' open' : '') + '>' +
+    '<summary><div class="sync-icon">✓</div><span><b>Покупки и запасы</b><small>' +
+    (available.length ? plural(available.length,'позиция','позиции','позиций') + ' в наличии' : 'запасы пока не заполнены') +
+    '</small></span></summary><div class="purchase-body">';
+  if (syncMessage) lidl += '<div class="sync-note" style="margin-top:12px">' + esc(syncMessage) + '</div>';
   if (syncDraft){
-    h += '<h3>Что добавить</h3>';
+    lidl += '<h3>Что добавить</h3>';
     syncDraft.forEach(function(plan, i){
       const grouped = groupedMapped(plan.mapped);
-      h += '<div class="receipt"><label class="receipt-top"><input type="checkbox" ' + (plan.included ? 'checked ' : '') +
+      lidl += '<div class="receipt"><label class="receipt-top"><input type="checkbox" ' + (plan.included ? 'checked ' : '') +
         'onchange="toggleReceipt(' + i + ',this)"><span class="receipt-title"><b>' + esc(human(plan.receipt.date)) + '</b><span>' +
         esc(plan.receipt.store || 'Lidl') + '</span></span><span class="receipt-count">' + grouped.length + '</span></label>';
       if (plan.included){
-        h += '<ul class="import-list">' + grouped.map(function(x){ return '<li><span>' + esc(x.product.name) + '</span><b>+' +
+        lidl += '<ul class="import-list">' + grouped.map(function(x){ return '<li><span>' + esc(x.product.name) + '</span><b>+' +
           esc(fmtQty(x.qty, x.product.unit)) + '</b></li>'; }).join('') + '</ul>';
-        if (plan.unknown.length) h += '<details><summary style="padding:9px 12px">Пропущено: ' + plan.unknown.length + '</summary><div class="small muted" style="padding:0 12px 10px">' +
+        if (plan.unknown.length) lidl += '<details><summary style="padding:9px 12px">Пропущено: ' + plan.unknown.length + '</summary><div class="small muted" style="padding:0 12px 10px">' +
           plan.unknown.map(esc).join(' · ') + '</div></details>';
       }
-      h += '</div>';
+      lidl += '</div>';
     });
-    h += '<div class="row2"><button class="btn" onclick="cancelSync()">Отмена</button><button class="btn acc" onclick="applySync()">Добавить в запасы</button></div>';
+    lidl += '<div class="row2"><button class="btn" onclick="cancelSync()">Отмена</button><button class="btn acc" onclick="applySync()">Добавить в запасы</button></div>';
   } else {
     if (available.length){
-      h += '<div class="stock-strip">' + available.slice(0,6).map(function(x){ return '<div class="stock-tile"><span>' + esc(x.name) +
+      lidl += '<div class="stock-strip">' + available.slice(0,6).map(function(x){ return '<div class="stock-tile"><span>' + esc(x.name) +
         '</span><b>' + esc(fmtQty(stockLeft(x.id), x.unit)) + '</b></div>'; }).join('') + '</div>';
-      if (available.length > 6) h += '<p class="hint">И ещё ' + (available.length - 6) + ' позиций в разделе «Кухня → Продукты».</p>';
+      if (available.length > 6) lidl += '<p class="hint">И ещё ' + (available.length - 6) + ' позиций в разделе «Кухня → Продукты».</p>';
     }
-    h += '<button class="btn" onclick="syncLidl(this)">Найти новые чеки</button>';
+    lidl += '<button class="btn" onclick="syncLidl(this)">Найти новые чеки</button>';
   }
-  h += '</div>';
-  h += '<div class="card chat-card"><div class="chat-top"><div class="chat-avatar">✦</div><div><b>Диалог</b><small>на связи</small></div></div><div class="chat" id="chat-thread">';
+  lidl += '</div></details>';
+  let h = '<div class="card chat-card"><div class="chat-top"><div class="chat-avatar">✦</div><div><b>Диалог</b><small>на связи</small></div></div><div class="chat" id="chat-thread">';
   if (!ai.messages.length) h += '<div class="msg ai">Привет, Саид. Я на связи.</div>';
   for (const m of ai.messages) h += '<div class="msg ' + (m.role === 'user' ? 'me' : 'ai') + '">' + esc(m.text) + '</div>';
   if (aiWaiting) h += '<div class="msg ai typing" aria-label="Ответ формируется"><i></i><i></i><i></i></div>';
@@ -853,7 +860,7 @@ function viewAI(){
     '<button class="chat-send' + (aiWaiting ? ' spin' : '') + '" id="ai-send" onclick="askAI()" aria-label="Отправить">↑</button></div>' +
     (ai.messages.length ? '<div class="chat-actions"><button onclick="clearAI()">Очистить историю</button></div>' : '') + '</div>';
   setTimeout(function(){ const box=document.getElementById('chat-thread'); if(box) box.scrollTop=box.scrollHeight; },0);
-  return h;
+  return h + lidl;
 }
 
 const THEMES = [
