@@ -1,7 +1,7 @@
 /* Офлайн-режим: в зале и в магазине сети может не быть.
    При изменении index.html или списка файлов поднять VERSION —
    иначе телефон останется на старой версии. */
-const VERSION = 'plan16-v32';
+const VERSION = 'plan16-v33';
 
 const ASSETS = [
   './',
@@ -35,7 +35,21 @@ const ASSETS = [
   'photos/22-quiche-poireaux.webp',
   'photos/23-gratin-chou-fleur.webp',
   'photos/24-tian-legumes.webp',
-  'photos/25-omelette-champignons.webp'
+  'photos/25-omelette-champignons.webp',
+  'photos/26-sauce-moutarde-citron.webp',
+  'photos/27-gremolata.webp',
+  'photos/28-sauce-tomate-express.webp',
+  'photos/29-sauce-fromage-blanc.webp',
+  'photos/30-deglacage.webp',
+  'photos/31-sauce-soja-citron.webp',
+  'photos/32-carottes-rapees.webp',
+  'photos/33-salade-verte.webp',
+  'photos/34-concombres-fromage-blanc.webp',
+  'photos/35-salade-tomates.webp',
+  'photos/36-haricots-verts-salade.webp',
+  'photos/37-salade-chou-blanc.webp',
+  'photos/38-endives-vinaigrette.webp',
+  'photos/39-salade-courgettes-crues.webp'
 ];
 
 self.addEventListener('install', function(e){

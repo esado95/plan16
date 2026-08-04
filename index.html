@@ -942,7 +942,8 @@ async function refreshServerData(){
     if (!res.ok) return;
     const obj = await res.json();
     if (!obj.periods || !obj.docs) return;
-    if (!D || JSON.stringify(D.stock) !== JSON.stringify(obj.stock) || D.generated !== obj.generated){
+    if (!D || JSON.stringify(D.stock) !== JSON.stringify(obj.stock) ||
+        JSON.stringify(D.recipes) !== JSON.stringify(obj.recipes) || D.generated !== obj.generated){
       D = obj; saveData(); render();
     }
   } catch(e){}
