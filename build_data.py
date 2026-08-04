@@ -421,6 +421,12 @@ PHOTOS = [
     ("chou-fleur", "23-gratin-chou-fleur"),
     ("tian", "24-tian-legumes"),
     ("champignons", "25-omelette-champignons"),
+    ("sauce-moutarde-citron", "26-sauce-moutarde-citron"),
+    ("gremolata", "27-gremolata"),
+    ("sauce-tomate-express", "28-sauce-tomate-express"),
+    ("sauce-au-fromage-blanc", "29-sauce-fromage-blanc"),
+    ("deglacage", "30-deglacage"),
+    ("sauce-soja-citron", "31-sauce-soja-citron"),
 ]
 
 
@@ -542,17 +548,25 @@ PRODUCTS = [
     ("prunes",     "Сливы",               "fruit", "г",  0, ["слив", "prune"]),
     ("peches",     "Персики, нектарины",  "fruit", "г",  0, ["персик", "нектарин"]),
     ("pommes",     "Яблоки",              "fruit", "г",  0, ["яблок", "pomme"]),
+    ("bananes",    "Бананы",              "fruit", "г",  0, ["banane", "банан"]),
+    ("oranges",    "Апельсины",           "fruit", "г",  0, ["orange", "апельсин"]),
     ("fruits",     "Фрукты, без разбора", "fruit", "г",  0, ["фрукт"]),
 
     ("pain",       "Хлеб цельнозерновой", "bread", "г",  0, ["pain complet", "pain aux noix", "хлеб"]),
     ("noix",       "Орехи и смеси",       "bread", "г",  0,
      ["mélange de noix", "melange de noix", "mix apéritif", "mix aperitif", "mélange de graines", "pistache", "орех"]),
     ("epices",     "Специи",              "bread", "",   0, ["специи"]),
+    ("protein_bar", "Протеиновые батончики", "bread", "шт", 0,
+     ["barres prot.", "barre proteinee", "протеиновый батончик"]),
 
     ("huile",      "Оливковое масло",     "fat",   "мл", 0, ["huile", "оливков", "масло"]),
     ("colza",      "Масло colza",         "fat",   "мл", 0, ["colza"]),
 
     ("eau",        "Вода",                "drink", "уп", 0, ["вода", "eau"]),
+    ("coca_zero",  "Coca-Cola Zero",      "drink", "мл", 0,
+     ["cc ss gde btl", "coca-cola zero", "coca cola zero", "кока-кола zero"]),
+    ("redbull_zero", "Red Bull без сахара", "drink", "мл", 0,
+     ["red bull sans sucres", "red bull zero", "red bull без сахара"]),
 ]
 
 UNITS = {"кг": 1000, "г": 1, "л": 1000, "мл": 1, "шт": 1}
@@ -722,7 +736,7 @@ def build_recipes(docs):
             out.append({
                 "id": slug(name), "title": name, "titleRu": recipe_ru(name), "group": group,
                 "doc": doc["id"], "sec": s["id"],
-                "photo": s["photo"],          # проставлен в build_doc только тем документам, у кого есть фото
+                "photo": s["photo"] or photo_for(name),
                 "html": s["html"],
             })
     return out
