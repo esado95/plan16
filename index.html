@@ -23,7 +23,7 @@
 }
 @media (prefers-color-scheme:dark){
   :root{
-    --bg:#141519; --card:#1e2027; --line:#2b2e36; --ink:#eceaf0; --muted:#8b8d98;
+    --bg:#141519; --card:#1e2027; --line:#343741; --ink:#f1eff4; --muted:#a4a6b0;
     --a1:#f0925a; --a2:#57b98f; --warn:#d3a04a; --shadow:none;
   }
 }
@@ -32,7 +32,7 @@
   --a1:#c9622c; --a2:#2f7d5c; --warn:#9a6a15; --shadow:0 1px 2px rgba(0,0,0,.05);
 }
 :root[data-th="soft-dark"]{
-  --bg:#141519; --card:#1e2027; --line:#2b2e36; --ink:#eceaf0; --muted:#8b8d98;
+  --bg:#141519; --card:#1e2027; --line:#343741; --ink:#f1eff4; --muted:#a4a6b0;
   --a1:#f0925a; --a2:#57b98f; --warn:#d3a04a; --shadow:none;
 }
 :root[data-th="instrument"]{
@@ -306,6 +306,29 @@ details > .secbody{padding-bottom:8px}
 .msg.me{align-self:flex-end; background:var(--a1); color:#fff; border-bottom-right-radius:3px}
 .msg.ai{align-self:flex-start; background:var(--bg); border:1px solid var(--line); border-bottom-left-radius:3px}
 .sync-note{padding:9px 11px; border-radius:9px; background:color-mix(in srgb,var(--a2) 10%,transparent); font-size:13px}
+.sync-head{display:flex; gap:10px; align-items:flex-start; margin-bottom:12px}
+.sync-icon{width:38px; height:38px; border-radius:12px; display:grid; place-items:center; flex:none;
+  background:color-mix(in srgb,var(--a2) 14%,transparent); color:var(--a2); font-size:19px}
+.sync-head h2{margin:0 0 2px}.sync-head p{margin:0}
+.receipt{border:1px solid var(--line); border-radius:12px; margin:10px 0; overflow:hidden}
+.receipt-top{display:flex; gap:10px; align-items:center; padding:11px 12px; background:var(--bg)}
+.receipt-top input{width:21px; height:21px; margin:0; accent-color:var(--a2); flex:none}
+.receipt-title{flex:1; line-height:1.25}.receipt-title b{display:block; font-size:14px}.receipt-title span{font-size:12px; color:var(--muted)}
+.receipt-count{font:650 13px/1 var(--fn); color:var(--a2)}
+.import-list{margin:0; padding:0 12px; list-style:none}
+.import-list li{display:flex; align-items:baseline; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:13.5px}
+.import-list li:first-child{border-top:0}.import-list span{flex:1}.import-list b{font:650 13px/1 var(--fn); color:var(--a2); white-space:nowrap}
+.stock-strip{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:10px 0}
+.stock-tile{background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:10px}
+.stock-tile span{display:block; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.stock-tile b{display:block; margin-top:2px; font:680 17px/1.25 var(--fn)}
+.success-card{border-color:color-mix(in srgb,var(--a2) 45%,var(--line)); background:color-mix(in srgb,var(--a2) 7%,var(--card))}
+.quick-prompts{display:flex; gap:7px; overflow-x:auto; margin:10px -2px 12px; padding:2px; scrollbar-width:none}
+.quick-prompts::-webkit-scrollbar{display:none}.quick-prompts .chip{white-space:nowrap; flex:none}
+.typing{display:inline-flex; gap:4px; align-items:center; min-width:48px}
+.typing i{width:6px; height:6px; border-radius:50%; background:var(--muted); animation:pulse 1.1s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.16s}.typing i:nth-child(3){animation-delay:.32s}
+@keyframes pulse{0%,60%,100%{opacity:.3; transform:translateY(0)}30%{opacity:1; transform:translateY(-2px)}}
 .spin{opacity:.65; pointer-events:none}
 </style>
 </head>
@@ -345,8 +368,11 @@ let openDay = null;           // какой день раскрыт на вкл�
 let openRow = null;           // какая строка дня раскрыта
 let openRecipe = null;
 let openDoc = null;           // какой справочник открыт на вкладке «Кухня»
+let syncDraft = null;         // предпросмотр новых чеков перед добавлением
+let syncMessage = '';
+let aiWaiting = false;
 
-function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, stock:{}, ui:{}, ai:{messages:[],tickets:[],purchases:[]}}; }
+function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, stock:{}, ui:{}, ai:{messages:[],tickets:[],purchases:[],lastImport:null}}; }
 
 /* ─────────────── остатки продуктов ─────────────── */
 
@@ -541,6 +567,11 @@ function aiState(){
   return S.ai;
 }
 
+function fmtQty(q, unit){
+  if ((unit === 'г' || unit === 'мл') && q >= 1000) return fmt(q / 1000) + (unit === 'г' ? ' кг' : ' л');
+  return fmt(q) + ' ' + unit;
+}
+
 function normText(s){
   return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
@@ -577,6 +608,16 @@ function receiptPlan(receipt){
   return {receipt:receipt, mapped:mapped, unknown:unknown};
 }
 
+function groupedMapped(mapped){
+  const out = new Map();
+  for (const x of mapped){
+    const old = out.get(x.product.id);
+    if (old) old.qty += x.qty;
+    else out.set(x.product.id, {product:x.product, qty:x.qty});
+  }
+  return [...out.values()];
+}
+
 async function syncLidl(btn){
   if (btn) btn.classList.add('spin');
   try {
@@ -584,34 +625,54 @@ async function syncLidl(btn){
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json(), ai = aiState();
     const fresh = (data.receipts || []).filter(function(r){ return ai.tickets.indexOf(r.id) < 0; });
-    if (!fresh.length){ alert('Новых чеков Lidl нет.'); return; }
-    const plans = fresh.map(receiptPlan);
-    const mapped = plans.reduce(function(a,p){ return a.concat(p.mapped); }, []);
-    const unknown = plans.reduce(function(a,p){ return a.concat(p.unknown); }, []);
-    const text = fresh.length + ' чек(а), ' + mapped.length + ' позиций попадут в остатки.' +
-      (unknown.length ? '\nНе удалось посчитать: ' + unknown.slice(0,8).join(', ') +
-      (unknown.length > 8 ? '…' : '') : '') + '\n\nДобавить распознанные позиции?';
-    if (!confirm(text)) return;
-    for (const x of mapped) addStock(x.product.id, x.qty);
-    ai.tickets = ai.tickets.concat(fresh.map(function(r){ return r.id; }));
-    ai.purchases = fresh.slice(-3).map(function(r){
-      return {date:r.date, items:(r.items || []).map(function(x){ return x.name; })};
-    });
-    save(); render();
-    alert('Остатки обновлены: ' + mapped.length + ' позиций.');
-  } catch(e){ alert('Не удалось получить покупки: ' + e.message); }
+    if (!fresh.length){ syncMessage = 'Всё актуально — новых чеков пока нет.'; syncDraft = null; render(); return; }
+    syncMessage = '';
+    syncDraft = fresh.map(function(r){ return Object.assign(receiptPlan(r), {included:true}); });
+    render();
+  } catch(e){ syncMessage = 'Не удалось получить покупки: ' + e.message; render(); }
   finally { if (btn) btn.classList.remove('spin'); }
+}
+
+function toggleReceipt(i, el){
+  if (syncDraft && syncDraft[i]) syncDraft[i].included = el.checked;
+  render();
+}
+
+function cancelSync(){ syncDraft = null; syncMessage = ''; render(); }
+
+function applySync(){
+  const picked = (syncDraft || []).filter(function(p){ return p.included; });
+  if (!picked.length){ syncMessage = 'Выберите хотя бы один чек.'; render(); return; }
+  const ai = aiState();
+  const mapped = picked.reduce(function(a,p){ return a.concat(p.mapped); }, []);
+  const grouped = groupedMapped(mapped);
+  for (const x of grouped) addStock(x.product.id, x.qty);
+  ai.tickets = ai.tickets.concat(picked.map(function(p){ return p.receipt.id; }));
+  ai.purchases = ai.purchases.concat(picked.map(function(p){
+    return {date:p.receipt.date, id:p.receipt.id, items:p.mapped.map(function(x){
+      return {name:x.product.name, quantity:x.qty, unit:x.product.unit};
+    })};
+  })).slice(-6);
+  ai.lastImport = {date:today(), receipts:picked.length, products:grouped.map(function(x){
+    return {name:x.product.name, added:x.qty, unit:x.product.unit, total:stockLeft(x.product.id)};
+  })};
+  syncMessage = 'Готово: ' + grouped.length + ' продуктов добавлено в запасы.';
+  syncDraft = null;
+  save(); render();
 }
 
 function aiContext(){
   const p = currentPeriod(), day = dayFor(today()), ai = aiState();
+  const stock = stockList().map(function(x){
+    return {name:x.name, category:x.cat, unit:x.unit, left:stockLeft(x.id), days:daysLeft(x)};
+  });
   return {
     date: today(),
     period: p ? {title:p.title, start:p.start, end:p.end || ''} : null,
     todayPlan: day ? {gym:day.gym || '', topic:day.topic || '', lunch:day.lunch || '', dinner:day.dinner || ''} : null,
-    stock: stockList().map(function(x){
-      return {name:x.name, category:x.cat, unit:x.unit, left:stockLeft(x.id), days:daysLeft(x)};
-    }),
+    stockAvailable: stock.filter(function(x){ return x.left > 0; }),
+    stockMissing: stock.filter(function(x){ return x.left <= 0; }).map(function(x){ return x.name; }),
+    lastImport: ai.lastImport || null,
     recentPurchases: ai.purchases.slice(-3),
     recentJournal: entries().slice(-5).map(function(e){
       return {date:e.date, weight:e.w, sleep:e.sleep, mood:e.mood, note:e.note || ''};
@@ -620,15 +681,18 @@ function aiContext(){
   };
 }
 
+function usePrompt(text){
+  const el = document.getElementById('ai-input');
+  if (el){ el.value = text; el.focus(); }
+}
+
 async function askAI(){
   const input = document.getElementById('ai-input');
   const message = input && input.value.trim();
   if (!message) return;
   const ai = aiState();
   ai.messages.push({role:'user', text:message});
-  save(); render();
-  const button = document.getElementById('ai-send');
-  if (button) button.classList.add('spin');
+  aiWaiting = true; save(); render();
   try {
     const res = await fetch(API + '/chat', {
       method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
@@ -638,6 +702,7 @@ async function askAI(){
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     ai.messages.push({role:'assistant', text:data.answer});
   } catch(e){ ai.messages.push({role:'assistant', text:'Не удалось ответить: ' + e.message}); }
+  aiWaiting = false;
   ai.messages = ai.messages.slice(-20);
   save(); render();
 }
@@ -649,15 +714,44 @@ function clearAI(){
 
 function viewAI(){
   const ai = aiState();
-  let h = '<div class="card"><h2>Покупки Lidl</h2>' +
-    '<p class="small muted">Новый чек добавляется в остатки один раз. Неизвестные упаковки приложение пропустит.</p>' +
-    '<button class="btn" onclick="syncLidl(this)">Проверить новые чеки</button>' +
-    (ai.purchases.length ? '<p class="hint">Последняя синхронизация: ' + esc(ai.purchases[ai.purchases.length-1].date) + '</p>' : '') + '</div>';
+  const available = stockList().filter(function(x){ return stockLeft(x.id) > 0; });
+  let h = '<div class="card' + (syncMessage.indexOf('Готово') === 0 ? ' success-card' : '') + '"><div class="sync-head"><div class="sync-icon">✓</div><div><h2>Покупки Lidl</h2>' +
+    '<p class="small muted">Чек сначала показывается для проверки и только потом меняет запасы.</p></div></div>';
+  if (syncMessage) h += '<div class="sync-note">' + esc(syncMessage) + '</div>';
+  if (syncDraft){
+    h += '<h3>Что добавить</h3>';
+    syncDraft.forEach(function(plan, i){
+      const grouped = groupedMapped(plan.mapped);
+      h += '<div class="receipt"><label class="receipt-top"><input type="checkbox" ' + (plan.included ? 'checked ' : '') +
+        'onchange="toggleReceipt(' + i + ',this)"><span class="receipt-title"><b>' + esc(human(plan.receipt.date)) + '</b><span>' +
+        esc(plan.receipt.store || 'Lidl') + '</span></span><span class="receipt-count">' + grouped.length + '</span></label>';
+      if (plan.included){
+        h += '<ul class="import-list">' + grouped.map(function(x){ return '<li><span>' + esc(x.product.name) + '</span><b>+' +
+          esc(fmtQty(x.qty, x.product.unit)) + '</b></li>'; }).join('') + '</ul>';
+        if (plan.unknown.length) h += '<details><summary style="padding:9px 12px">Пропущено: ' + plan.unknown.length + '</summary><div class="small muted" style="padding:0 12px 10px">' +
+          plan.unknown.map(esc).join(' · ') + '</div></details>';
+      }
+      h += '</div>';
+    });
+    h += '<div class="row2"><button class="btn" onclick="cancelSync()">Отмена</button><button class="btn acc" onclick="applySync()">Добавить в запасы</button></div>';
+  } else {
+    if (available.length){
+      h += '<div class="stock-strip">' + available.slice(0,6).map(function(x){ return '<div class="stock-tile"><span>' + esc(x.name) +
+        '</span><b>' + esc(fmtQty(stockLeft(x.id), x.unit)) + '</b></div>'; }).join('') + '</div>';
+      if (available.length > 6) h += '<p class="hint">И ещё ' + (available.length - 6) + ' позиций в разделе «Кухня → Продукты».</p>';
+    }
+    h += '<button class="btn" onclick="syncLidl(this)">Найти новые чеки</button>';
+  }
+  h += '</div>';
   h += '<div class="card"><h2>Помощник</h2><p class="small muted">Знает текущий план, остатки и последние импортированные покупки.</p><div class="chat">';
   if (!ai.messages.length) h += '<div class="msg ai">Спроси, чего не хватает, что приготовить или что докупить на несколько дней.</div>';
   for (const m of ai.messages) h += '<div class="msg ' + (m.role === 'user' ? 'me' : 'ai') + '">' + esc(m.text) + '</div>';
-  h += '</div><textarea id="ai-input" maxlength="2000" placeholder="Например: чего не хватает на ближайшие три дня?"></textarea>' +
-    '<button class="btn acc" id="ai-send" onclick="askAI()">Спросить</button>' +
+  if (aiWaiting) h += '<div class="msg ai typing" aria-label="Помощник думает"><i></i><i></i><i></i></div>';
+  h += '</div><div class="quick-prompts"><button class="chip" onclick="usePrompt(\'Что есть в запасах?\')">Что есть</button>' +
+    '<button class="chip" onclick="usePrompt(\'Чего не хватает на ближайшие три дня?\')">Чего не хватает</button>' +
+    '<button class="chip" onclick="usePrompt(\'Что приготовить из текущих запасов?\')">Что приготовить</button></div>' +
+    '<textarea id="ai-input" maxlength="2000" placeholder="Например: чего не хватает на ближайшие три дня?"></textarea>' +
+    '<button class="btn acc' + (aiWaiting ? ' spin' : '') + '" id="ai-send" onclick="askAI()">' + (aiWaiting ? 'Думаю…' : 'Спросить') + '</button>' +
     (ai.messages.length ? '<button class="btn" onclick="clearAI()">Очистить диалог</button>' : '') + '</div>';
   return h;
 }
