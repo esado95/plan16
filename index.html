@@ -774,6 +774,16 @@ function dishChoices(idx){
   return list.length ? list : D.recipes;
 }
 
+function saladChoices(){
+  if (!D || !D.recipes) return [];
+  return D.recipes.filter(function(r){ return /салат/i.test(r.group); });
+}
+
+function mealSalad(day, idx){
+  const picked = ((S.log[day] || {}).salad || {})[idx];
+  return picked && D.recipes ? D.recipes.find(function(x){ return x.id === picked; }) : null;
+}
+
 /* Итог приёма с учётом выбранного гарнира. */
 function mealTotal(meal, day){
   const N = nut();
@@ -829,6 +839,18 @@ function mealDetail(meal, idx, day, d){
     }
     h += '</select></div>';
   }
+
+  const salads = saladChoices();
+  const salad = mealSalad(day, idx);
+  if (salads.length){
+    h += '<div class="f" style="margin-top:8px"><label>Салат</label><select data-salad="' + idx + '">';
+    h += '<option value=""' + (salad ? '' : ' selected') + '>Без салата</option>';
+    for (const r of salads){
+      h += '<option value="' + esc(r.id) + '"' + (salad && r.id === salad.id ? ' selected' : '') + '>' +
+        esc(r.title) + '</option>';
+    }
+    h += '</select></div>';
+  }
   // из чего приём состоит целиком — иначе кажется, что ешь одну курицу с чечевицей
   const inDish = meal.items.filter(function(it){
     return !(swap && it.name === N.side.name) && !/fromage blanc/i.test(it.name);
@@ -840,14 +862,19 @@ function mealDetail(meal, idx, day, d){
     return it.name.toLowerCase() + ' ' + it.weight;
   }).join(', ') + '</li>';
   if (swap) h += '<li><b>Гарнир</b> — ' + esc(sel.name.toLowerCase()) + ' ' + g + ' г</li>';
-  h += final
-    ? '<li><b>Финал</b> — ' + esc(final.name.toLowerCase()) + ' ' + esc(final.weight) + ', обязательно</li>'
-    : '<li><b>Салат</b> — зелёный, с низкокалорийным соусом, по желанию</li>';
+  h += '<li><b>Салат</b> — ' + (salad ? esc(salad.title) : 'не выбран, по желанию') + '</li>';
+  if (final) h += '<li><b>Финал</b> — ' + esc(final.name.toLowerCase()) + ' ' + esc(final.weight) + ', обязательно</li>';
   h += '</ul>';
 
   if (dish){
     h += '<button class="btn" style="margin-top:10px" onclick="openR(\'' + esc(dish.id).replace(/'/g, "\\'") +
       '\')">Рецепт: ' + esc(dish.title) + ' →</button>';
+  }
+  if (salad){
+    h += '<button class="btn" style="margin-top:8px" onclick="openR(\'' + esc(salad.id).replace(/'/g, "\\'") +
+      '\')">Рецепт: ' + esc(salad.title) + ' →</button>';
+    h += '<p class="hint">Салат в цифры приёма не входит. С низкокалорийным соусом это примерно 60–110 ккал ' +
+      'и почти без жиров; с классическим винегретом — на 280 ккал больше, и тогда убирай ложку масла из блюда.</p>';
   }
 
   h += '<details style="margin-top:10px"><summary>Состав и цифры</summary>';
@@ -1460,6 +1487,16 @@ function bind(date){
       const e = S.log[date] || (S.log[date] = {});
       if (!e.dish) e.dish = {};
       e.dish[el.dataset.dish] = el.value;
+      save();
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-salad]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (!e.salad) e.salad = {};
+      if (el.value) e.salad[el.dataset.salad] = el.value; else delete e.salad[el.dataset.salad];
       save();
       render();
     });
