@@ -196,6 +196,9 @@ summary::-webkit-details-marker{display:none}
 summary::before{content:'+ '; color:var(--a1); font-weight:400}
 details[open] summary::before{content:'– '}
 details .md{padding:0 0 12px}
+details.sub{margin-left:14px; border-left:1px solid var(--line); border-top:0; padding-left:12px}
+details.sub summary{font-weight:400; padding:8px 0; font-size:13.5px}
+details > .secbody{padding-bottom:8px}
 
 .empty{text-align:center; padding:44px 20px; color:var(--muted)}
 .empty p{max-width:340px; margin:0 auto 16px}
@@ -236,6 +239,7 @@ let tab = 'today';
 let openDay = null;           // какой день раскрыт на вкладке «План»
 let openMeal = null;          // какой приём пищи раскрыт в распорядке
 let openRecipe = null;
+let openDoc = null;           // какой справочник открыт на вкладке «Кухня»
 
 function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, ui:{}}; }
 
@@ -766,9 +770,20 @@ function viewFood(){
     }
   }
 
+  if (openDoc) return docScreen(openDoc);
+
   let h = '';
   const withPhoto = D.recipes.filter(function(r){ return r.photo; });
   const rest = D.recipes.filter(function(r){ return !r.photo; });
+
+  // справочники наверху: раньше они разворачивались целиком и хоронили под собой всё остальное
+  h += '<div class="card tight"><ul class="list">';
+  for (const doc of (D.docs || [])){
+    h += '<li><button onclick="openD(\'' + doc.id + '\')"><span class="v">' + esc(doc.title) +
+      '<small>' + plural(doc.sections.filter(function(s){ return s.level === 1; }).length, 'раздел', 'раздела', 'разделов') +
+      '</small></span><span class="muted">›</span></button></li>';
+  }
+  h += '</ul></div><div style="height:12px"></div>';
 
   h += '<div class="tiles">';
   for (const r of withPhoto){
@@ -788,23 +803,46 @@ function viewFood(){
   }
   h += '</ul></div>';
 
-  for (const doc of (D.docs || [])){
-    h += '<div class="card"><h2>' + esc(doc.title) + '</h2>';
-    if (doc.html) h += '<div class="md">' + doc.html + '</div>';
-    for (const s of doc.sections){
-      if (s.level === 1){
-        h += '<h3>' + esc(s.title) + '</h3>';
-        if (s.html) h += '<div class="md">' + s.html + '</div>';
-      } else {
-        h += '<details><summary>' + esc(s.title) + '</summary><div class="md">' + s.html + '</div></details>';
-      }
-    }
-    h += '</div>';
-  }
   return h;
 }
 
-function openR(id){ openRecipe = id; tab = 'food'; render(); window.scrollTo(0,0); }
+/* Документ отдельным экраном: разделы свёрнуты, подразделы вложены. */
+function docScreen(id){
+  const doc = (D.docs || []).find(function(d){ return d.id === id; });
+  if (!doc) return '';
+
+  let h = '<button class="btn" onclick="openD(null)">← Кухня</button><div style="height:12px"></div>';
+  h += '<div class="card"><h2>' + esc(doc.title) + '</h2>';
+  if (doc.html) h += '<div class="md">' + doc.html + '</div>';
+
+  let open = false;
+  let first = true;
+  for (const s of doc.sections){
+    if (s.level === 1){
+      // первый раздел часто повторяет название документа — он идёт вступлением, а не строкой списка
+      if (first && !open && s.title.indexOf(doc.title) === 0){
+        first = false;
+        if (s.html) h += '<div class="md">' + s.html + '</div>';
+        continue;
+      }
+      first = false;
+      if (open) h += '</div></details>';
+      h += '<details><summary>' + esc(s.title) + '</summary><div class="secbody">';
+      if (s.html) h += '<div class="md">' + s.html + '</div>';
+      open = true;
+    } else {
+      const body = '<div class="md">' + s.html + '</div>';
+      h += open
+        ? '<details class="sub"><summary>' + esc(s.title) + '</summary>' + body + '</details>'
+        : '<details><summary>' + esc(s.title) + '</summary>' + body + '</details>';
+    }
+  }
+  if (open) h += '</div></details>';
+  return h + '</div>';
+}
+
+function openR(id){ openRecipe = id; openDoc = null; tab = 'food'; render(); window.scrollTo(0,0); }
+function openD(id){ openDoc = id; openRecipe = null; tab = 'food'; render(); window.scrollTo(0,0); }
 
 /* ─────────────── вкладка «Дневник» ─────────────── */
 
@@ -857,7 +895,7 @@ function viewLog(){
       if (e.mood != null) bits.push('сам. ' + e.mood);
       const meals = e.meals ? Object.keys(e.meals).length : 0;
       if (meals) bits.push('приёмов ' + meals);
-      if (done) bits.push('чек-лист ' + done);
+      if (done) bits.push('Чек-лист');
       h += '<li><button onclick="editDay(\'' + e.date + '\')"><span class="k">' + human(e.date) + '</span>' +
         '<span class="v">' + (bits.join(' · ') || '—') + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span></button></li>';
     }
@@ -1173,7 +1211,7 @@ function render(){
   });
 }
 
-function go(t){ tab = t; openRecipe = null; render(); window.scrollTo(0,0); }
+function go(t){ tab = t; openRecipe = null; openDoc = null; render(); window.scrollTo(0,0); }
 
 document.querySelectorAll('nav button').forEach(function(b){
   b.addEventListener('click', function(){ go(b.dataset.tab); });

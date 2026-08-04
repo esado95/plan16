@@ -499,8 +499,9 @@ def build_recipes(docs):
 
 def main():
     docs = [
-        build_doc("Рацион.md", "racion", "Рацион"),
+        # порядок = порядок в приложении; закуп первым, он нужен чаще всего
         build_doc("Закуп.md", "achats", "Закуп"),
+        build_doc("Рацион.md", "racion", "Рацион"),
         build_doc("Французская_кухня.md", "cuisine", "Французская кухня", photos=True),
         build_doc("Французская_кухня_2.md", "cuisine2", "Ещё блюда", photos=True),
         build_doc("Салаты_и_соусы.md", "salades", "Салаты и соусы"),
