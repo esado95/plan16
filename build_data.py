@@ -458,16 +458,16 @@ def product_for(name):
     return None
 
 
+# Даты походам не назначаются: владелец сам решает, когда идти, и добавляет закуп в день.
+TRIPS = ["Большой закуп", "Свежее", "Добор"]
+
+
 def build_shopping():
-    """Походы за продуктами: дата, что взять и сколько чего это добавляет в запас."""
+    """Списки покупок: что взять и сколько чего это добавляет в запас."""
     by_id = {p[0]: p for p in PRODUCTS}
     out = []
     for title, body in split_headings(read("Закуп.md"), 1)[1]:
-        if not title.startswith("Поход"):
-            continue
-        m = re.search(r"(\d{1,2})\s+([а-яё]+)", title)
-        if not m:
-            print("  ! в заголовке «%s» не нашлась дата" % title)
+        if title not in TRIPS:
             continue
 
         items = []
@@ -484,13 +484,12 @@ def build_shopping():
                 continue
             items.append({"id": pid, "name": row[0], "amount": row[1], "product": pid, "qty": qty})
 
-        out.append({
-            "title": title,
-            "date": date(YEAR, MONTHS[m.group(2)], int(m.group(1))).isoformat(),
-            "html": html(body),
-            "items": items,
-        })
-    return sorted(out, key=lambda x: x["date"])
+        out.append({"id": slug(title), "title": title, "html": html(body), "items": items})
+
+    missing = [t for t in TRIPS if t not in [x["title"] for x in out]]
+    if missing:
+        print("  ! в Закуп.md нет разделов: %s" % ", ".join(missing))
+    return out
 
 
 def build_stock():
@@ -591,7 +590,7 @@ def main():
           % (len(data["periods"]), len(p["days"]), len(p["checklist"]), len(p["schedule"])))
     print("блюд: %d (с фото %d), документов: %d"
           % (len(data["recipes"]), sum(1 for r in data["recipes"] if r["photo"]), len(docs)))
-    print("закуп: %s" % ", ".join(x["date"] for x in data["shopping"]))
+    print("закуп: %s" % ", ".join("%s (%d позиций в запас)" % (x["title"], len(x["items"])) for x in data["shopping"]))
 
     n = data["nutrition"]
     print("рацион: норма %s ккал, приёмов %d, гарнир по плану %s, вариантов замены %d"

@@ -10,23 +10,50 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
+/* Темы. Без выбора приложение следует системе; выбранная тема ставится
+   атрибутом data-th на <html> и перекрывает всё. Шрифты только системные:
+   загрузку внешних блокирует политика безопасности страницы. */
 :root{
-  --bg:#f4f2ee; --card:#fff; --line:#e2ddd4; --ink:#1d1f23; --muted:#6d7079;
-  --a1:#a8532c; --a2:#2f6b57; --warn:#8a5a12;
+  --bg:#f3f2f6; --card:#ffffff; --line:#e3e2e9; --ink:#1b1c21; --muted:#6f717d;
+  --a1:#c9622c; --a2:#2f7d5c; --warn:#9a6a15;
+  --r:18px; --rb:7px; --cb:1px solid var(--line);
+  --f:ui-rounded,-apple-system,"Segoe UI Variable",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --fn:var(--f);
   --shadow:0 1px 2px rgba(0,0,0,.05);
 }
 @media (prefers-color-scheme:dark){
   :root{
-    --bg:#14161a; --card:#1c1f25; --line:#2b3038; --ink:#e8e6e1; --muted:#969ba6;
-    --a1:#d97a4a; --a2:#5aab8c; --warn:#d3a04a;
-    --shadow:none;
+    --bg:#141519; --card:#1e2027; --line:#2b2e36; --ink:#eceaf0; --muted:#8b8d98;
+    --a1:#f0925a; --a2:#57b98f; --warn:#d3a04a; --shadow:none;
   }
+}
+:root[data-th="soft-light"]{
+  --bg:#f3f2f6; --card:#ffffff; --line:#e3e2e9; --ink:#1b1c21; --muted:#6f717d;
+  --a1:#c9622c; --a2:#2f7d5c; --warn:#9a6a15; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+:root[data-th="soft-dark"]{
+  --bg:#141519; --card:#1e2027; --line:#2b2e36; --ink:#eceaf0; --muted:#8b8d98;
+  --a1:#f0925a; --a2:#57b98f; --warn:#d3a04a; --shadow:none;
+}
+:root[data-th="instrument"]{
+  --bg:#0b0d10; --card:#0f1216; --line:#23272e; --ink:#e6e8ea; --muted:#7d838c;
+  --a1:#e08a3c; --a2:#4f9b7d; --warn:#d3a04a; --shadow:none;
+  --r:4px; --rb:0px;
+  --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --fn:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+:root[data-th="journal"]{
+  --bg:#f6f4ef; --card:#f6f4ef; --line:#ddd7cb; --ink:#1b1a17; --muted:#8a8375;
+  --a1:#a4593a; --a2:#3f6b52; --warn:#8a5a12; --shadow:none;
+  --r:0px; --rb:50%; --cb:none;
+  --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --fn:ui-serif,Georgia,"Times New Roman",serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--ink);
-  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font:16px/1.55 var(--f);
   -webkit-text-size-adjust:100%;
 }
 /* Шапка и нижнее меню одинаковы на всех экранах: высота задана явно,
@@ -58,9 +85,10 @@ nav button{
 nav button b{display:block; font-size:17px; font-weight:400; margin-bottom:1px}
 nav button.on{color:var(--a1)}
 .card{
-  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  background:var(--card); border:var(--cb); border-radius:var(--r);
   padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow);
 }
+:root[data-th="journal"] .card{border-bottom:1px solid var(--line); padding-left:0; padding-right:0}
 .card.tight{padding:0; overflow:hidden}
 h2{font-size:15px; font-weight:650; margin:0 0 10px; letter-spacing:-.01em}
 h3{font-size:14px; font-weight:650; margin:16px 0 6px}
@@ -83,11 +111,35 @@ hr{border:0; border-top:1px solid var(--line); margin:14px 0}
 button.chip{cursor:pointer; font-family:inherit}
 
 /* сводка дня */
-.zone-h{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px}
-.zone-h h2{margin:0}
+.zone-h{display:flex; align-items:center; gap:9px; margin-bottom:4px}
+.zone-h h2{margin:0; flex:1}
+.zone-h i{
+  width:26px; height:26px; border-radius:calc(var(--rb) + 2px); flex:none;
+  display:grid; place-items:center; font-style:normal; font-size:14px;
+}
+:root[data-th="journal"] .zone-h i{display:none}
+.pills{display:flex; gap:7px; margin-top:13px}
+.pill{
+  flex:1; background:var(--bg); border:var(--cb); border-radius:calc(var(--rb) + 5px);
+  padding:9px 6px; text-align:center;
+}
+:root[data-th="journal"] .pill{border:0; border-top:1px solid var(--line); border-radius:0; text-align:left}
+.themes{display:flex; flex-wrap:wrap; gap:8px}
+.th{
+  font:inherit; font-size:13.5px; padding:9px 13px; cursor:pointer;
+  background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:calc(var(--rb) + 4px);
+}
+.th.on{background:var(--a1); border-color:var(--a1); color:var(--bg); font-weight:600}
+.parts{margin:12px 0 0; padding:0; list-style:none; font-size:13.5px}
+.parts li{padding:6px 0; border-top:1px solid var(--line)}
+.parts li:first-child{border-top:0}
+.parts b{font-weight:600}
+.pill b{display:block; font:700 16px/1.3 var(--fn)}
+.pill span{font-size:10.5px; color:var(--muted)}
 .ring{display:flex; align-items:center; gap:13px; margin:12px 0 4px}
 .ring svg{flex:none}
-.ring .n{font-size:20px; font-weight:680; letter-spacing:-.02em}
+.ring .n{font:680 20px/1.2 var(--fn); letter-spacing:-.02em}
+.day-head .n, .big, .nums b, .pill b{font-family:var(--fn)}
 .bars{display:flex; flex-direction:column; gap:9px; margin-top:12px}
 .bar-row{display:grid; grid-template-columns:1fr auto; gap:2px 8px; font-size:12.5px}
 .track{grid-column:1/-1; height:6px; border-radius:99px; background:var(--line); overflow:hidden}
@@ -107,7 +159,11 @@ button.chip{cursor:pointer; font-family:inherit}
   min-width:42px; flex:none; font-size:13px; padding-top:2px;
 }
 .tl label{display:flex; gap:10px; align-items:flex-start; flex:1; cursor:pointer}
-.tl input[type=checkbox]{width:21px; height:21px; margin:0; accent-color:var(--a2); flex:none}
+.tl input[type=checkbox]{
+  width:21px; height:21px; margin:0; accent-color:var(--a2); flex:none;
+  border-radius:var(--rb);
+}
+.tl .t{font-family:var(--fn)}
 .tl .txt{flex:1; font-size:14px; line-height:1.45}
 .tl input:checked + .txt{color:var(--muted)}
 .tl .more{
@@ -280,6 +336,31 @@ let openDoc = null;           // какой справочник открыт н
 
 function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, ui:{}}; }
 
+const THEMES = [
+  {id: '',           name: 'Как в системе'},
+  {id: 'soft-dark',  name: 'Мягкая тёмная'},
+  {id: 'soft-light', name: 'Мягкая светлая'},
+  {id: 'instrument', name: 'Прибор'},
+  {id: 'journal',    name: 'Журнал'}
+];
+
+function applyTheme(){
+  const t = (S.ui || {}).theme || '';
+  if (t) document.documentElement.setAttribute('data-th', t);
+  else document.documentElement.removeAttribute('data-th');
+  // строка состояния телефона должна совпадать с фоном приложения
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', getComputedStyle(document.body).backgroundColor);
+}
+
+function setTheme(id){
+  if (!S.ui) S.ui = {};
+  S.ui.theme = id;
+  save();
+  applyTheme();
+  render();
+}
+
 const REP = [1, 3, 7];                                            // возврат к теме: назавтра, через три дня, через неделю
 const REP_LABEL = {1:'вчера', 3:'три дня назад', 7:'неделю назад'};
 
@@ -388,7 +469,21 @@ function esc(s){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
   });
 }
-function num(v){ const n = parseFloat(String(v).replace(',','.')); return isFinite(n) ? n : null; }
+/* Принимает и «7,5», и «7:30», и «7ч30» — сон удобнее вводить в часах и минутах. */
+function num(v){
+  const s = String(v).trim();
+  const hm = s.match(/^(\d+)\s*[:чh]\s*(\d{1,2})/i);
+  if (hm) return +hm[1] + (+hm[2]) / 60;
+  const n = parseFloat(s.replace(',', '.'));
+  return isFinite(n) ? n : null;
+}
+
+/* 7,5 → «7 ч 30 мин» */
+function hm(v){
+  if (v == null) return '—';
+  const h = Math.floor(v), m = Math.round((v - h) * 60);
+  return h + ' ч' + (m ? ' ' + m + ' мин' : '');
+}
 function fmt(n, d){ return n == null ? '—' : n.toFixed(d == null ? 1 : d).replace('.', ','); }
 function plural(n, one, few, many){
   const a = Math.abs(n) % 100, b = a % 10;
@@ -442,10 +537,10 @@ function viewToday(){
 /* ─────────────── строки дня ─────────────── */
 
 const ZONES = [
-  {id: 'body',   title: 'Тело'},
-  {id: 'food',   title: 'Еда'},
-  {id: 'study',  title: 'Учёба'},
-  {id: 'regime', title: 'Ещё за день'}
+  {id: 'body',   title: 'Тело',        icon: '◍', hue: '#7b8cf0'},
+  {id: 'food',   title: 'Еда',         icon: '◑', hue: 'var(--a1)'},
+  {id: 'study',  title: 'Учёба',       icon: '▤', hue: 'var(--a2)'},
+  {id: 'regime', title: 'Ещё за день', icon: '◇', hue: 'var(--muted)'}
 ];
 
 /* Один список дел на день, разложенный по смыслу.
@@ -475,11 +570,11 @@ function dayRows(d, day){
 
   // ── еда
   const N = nut();
-  const trip = ((D && D.shopping) || []).find(function(x){ return x.date === day; });
+  // закуп не стоит в расписании: он появляется в дне, только когда сам его добавил
+  const trip = ((D && D.shopping) || []).find(function(x){ return x.id === e.trip; });
   if (trip){
-    rows.push({zone:'food', key:'shopped', tick:'shopped', t:'09:00',
-      text: 'Закуп — ' + trip.title.replace(/\s*·.*$/, '').toLowerCase(),
-      sub: 'список на пять дней',
+    rows.push({zone:'food', key:'shopped', tick:'shopped', t:'',
+      text: 'Закуп: ' + trip.title, sub: plural(trip.items.length, 'позиция', 'позиции', 'позиций'),
       detail: function(){ return '<div class="md">' + trip.html + '</div>'; }});
   }
   if (N) N.meals.forEach(function(meal, i){
@@ -547,7 +642,9 @@ function zoneCard(zone, day, rows){
   if (!mine.length) return '';
   const done = mine.filter(function(r){ return rowDone(day, r); }).length;
 
-  let h = '<div class="card"><div class="zone-h"><h2>' + esc(zone.title) + '</h2>' +
+  let h = '<div class="card"><div class="zone-h">' +
+    '<i style="background:color-mix(in srgb,' + zone.hue + ' 18%,transparent); color:' + zone.hue + '">' + zone.icon + '</i>' +
+    '<h2>' + esc(zone.title) + '</h2>' +
     '<span class="muted small">' + done + ' из ' + mine.length + '</span></div><ul class="tl">';
   for (const r of mine){
     const open = openRow === r.key;
@@ -562,13 +659,29 @@ function zoneCard(zone, day, rows){
     }
     h += '</li>';
   }
-  if (zone.id === 'food') h += waterRow(day);
+  if (zone.id === 'food') h += waterRow(day) + tripRow(day);
   h += '</ul>';
   if (zone.id === 'food') h += proteinNote(day);
   return h + '</div>';
 }
 
 function toggleRow(key){ openRow = openRow === key ? null : key; render(); }
+
+function tripRow(day){
+  const trips = (D && D.shopping) || [];
+  if (!trips.length) return '';
+  const e = S.log[day] || {};
+
+  if (e.trip){
+    return '<li><div class="row"><span class="t"></span><span class="txt muted small">' +
+      'Закуп добавлен в этот день <button class="step" data-trip="">убрать</button></span></div></li>';
+  }
+  let h = '<li><div class="row"><span class="t"></span><span class="txt"><span class="muted small">Иду в магазин:</span><br>';
+  for (const t of trips){
+    h += '<button class="step" style="margin:6px 6px 0 0" data-trip="' + esc(t.id) + '">+ ' + esc(t.title) + '</button>';
+  }
+  return h + '</span></div></li>';
+}
 
 function waterRow(day){
   const v = (S.log[day] || {}).water || 0;
@@ -602,21 +715,17 @@ function summaryCard(d, day, rows){
   if (N){
     const s = eaten(day);
     const np = range(N.norm.p), nk = range(N.norm.kcal);
-    h += '<div class="bars">';
-    h += bar('Белок', s.p, np ? np[0] : 200, 'г');
-    h += bar('Калории', s.kcal, nk ? nk[1] : 2150, '');
-    h += bar('Вода', (S.log[day] || {}).water || 0, 4, 'л');
-    h += '</div>';
+    h += '<div class="pills">' +
+      pill(Math.round(s.p), 'белок / ' + (np ? np[0] : 200)) +
+      pill(Math.round(s.kcal), 'ккал / ' + (nk ? nk[1] : 2150)) +
+      pill(fmt((S.log[day] || {}).water || 0), 'вода / 4 л') +
+      '</div>';
   }
   return h + '</div>';
 }
 
-function bar(label, value, goal, unit){
-  const pct = Math.max(0, Math.min(100, goal ? value / goal * 100 : 0));
-  const shown = unit === 'л' ? fmt(value) : Math.round(value);
-  return '<div class="bar-row"><span>' + label + '</span>' +
-    '<span class="muted">' + shown + ' из ' + goal + (unit ? ' ' + unit : '') + '</span>' +
-    '<span class="track"><span class="fill" style="width:' + pct.toFixed(0) + '%"></span></span></div>';
+function pill(value, label){
+  return '<div class="pill"><b>' + value + '</b><span>' + esc(label) + '</span></div>';
 }
 
 /* ─────────────── гарнир ─────────────── */
@@ -720,6 +829,22 @@ function mealDetail(meal, idx, day, d){
     }
     h += '</select></div>';
   }
+  // из чего приём состоит целиком — иначе кажется, что ешь одну курицу с чечевицей
+  const inDish = meal.items.filter(function(it){
+    return !(swap && it.name === N.side.name) && !/fromage blanc/i.test(it.name);
+  });
+  const final = meal.items.find(function(it){ return /fromage blanc/i.test(it.name); });
+
+  h += '<ul class="parts">';
+  h += '<li><b>Блюдо</b> — ' + inDish.map(function(it){
+    return it.name.toLowerCase() + ' ' + it.weight;
+  }).join(', ') + '</li>';
+  if (swap) h += '<li><b>Гарнир</b> — ' + esc(sel.name.toLowerCase()) + ' ' + g + ' г</li>';
+  h += final
+    ? '<li><b>Финал</b> — ' + esc(final.name.toLowerCase()) + ' ' + esc(final.weight) + ', обязательно</li>'
+    : '<li><b>Салат</b> — зелёный, с низкокалорийным соусом, по желанию</li>';
+  h += '</ul>';
+
   if (dish){
     h += '<button class="btn" style="margin-top:10px" onclick="openR(\'' + esc(dish.id).replace(/'/g, "\\'") +
       '\')">Рецепт: ' + esc(dish.title) + ' →</button>';
@@ -1010,8 +1135,10 @@ function viewLog(){
     const delta = last - first;
     h += '<div class="card">';
     h += '<div class="big">' + fmt(last) + ' <span>кг · среднее за 7 дней</span></div>';
+    const moved = Math.abs(delta) >= 0.05;
     h += '<div class="delta ' + (delta <= 0 ? 'down' : 'up') + '">' +
-      (delta <= 0 ? '−' : '+') + fmt(Math.abs(delta)) + ' кг от старта ' + human(list[0].date) +
+      (moved ? (delta <= 0 ? '−' : '+') + fmt(Math.abs(delta)) + ' кг' : 'без изменений') +
+      ' от старта ' + human(list[0].date) +
       ' · ' + plural(list.length, 'запись', 'записи', 'записей') + '</div>';
     h += chart(list);
     h += '<p class="hint">Одна цифра ничего не значит: вода гуляет на 1–2 кг. Смотри линию среднего.</p>';
@@ -1031,14 +1158,17 @@ function viewLog(){
   if (all.length){
     h += '<div class="card tight"><ul class="list">';
     for (const e of all.slice().reverse()){
+      const p = periodFor(e.date);
+      const total = (p && p.checklist) ? p.checklist.length : 0;
       const done = e.check ? Object.keys(e.check).filter(function(k){ return e.check[k]; }).length : 0;
       const bits = [];
       if (e.w != null) bits.push(fmt(e.w) + ' кг');
-      if (e.sleep != null) bits.push('сон ' + fmt(e.sleep) + ' ч');
-      if (e.mood != null) bits.push('сам. ' + e.mood);
+      if (e.sleep != null) bits.push('сон ' + hm(e.sleep));
+      if (e.mood != null) bits.push('самочувствие ' + e.mood);
       const meals = e.meals ? Object.keys(e.meals).length : 0;
       if (meals) bits.push('приёмов ' + meals);
-      if (done) bits.push('Чек-лист');
+      // слово появляется, только когда чек-лист закрыт целиком — иначе оно ничего не сообщает
+      if (total && done >= total) bits.push('Чек-лист');
       h += '<li><button onclick="editDay(\'' + e.date + '\')"><span class="k">' + human(e.date) + '</span>' +
         '<span class="v">' + (bits.join(' · ') || '—') + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span></button></li>';
     }
@@ -1054,9 +1184,12 @@ function chart(list){
   const W = 320, H = 150, PL = 34, PR = 6, PT = 10, PB = 18;
   const ws = list.map(function(e){ return e.w; });
   const avgs = list.map(function(_, i){ return avg7(list, i); });
-  let lo = Math.min.apply(null, ws), hi = Math.max.apply(null, ws);
-  if (hi - lo < 2){ const m = (hi+lo)/2; lo = m-1; hi = m+1; }
-  const pad = (hi-lo) * 0.12; lo -= pad; hi += pad;
+  // границы кратны половине килограмма, размах чётный — иначе подписи вроде 143/145/146
+  const min = Math.min.apply(null, ws), max = Math.max.apply(null, ws);
+  const mid = (min + max) / 2;
+  const span = Math.ceil(Math.max(2, (max - min) * 1.4) * 2) / 2;
+  const lo = Math.round((mid - span / 2) * 2) / 2;
+  const hi = lo + span;
   const n = list.length;
   const x = function(i){ return n < 2 ? PL : PL + i * (W-PL-PR) / (n-1); };
   const y = function(v){ return PT + (hi-v) * (H-PT-PB) / (hi-lo); };
@@ -1066,7 +1199,8 @@ function chart(list){
     const v = lo + (hi-lo) * g / 2;
     s += '<line x1="' + PL + '" y1="' + y(v).toFixed(1) + '" x2="' + (W-PR) + '" y2="' + y(v).toFixed(1) +
          '" stroke="var(--line)" stroke-width="1"/>' +
-         '<text x="2" y="' + (y(v)+3.5).toFixed(1) + '" font-size="9" fill="var(--muted)">' + fmt(v,0) + '</text>';
+         '<text x="2" y="' + (y(v)+3.5).toFixed(1) + '" font-size="9" fill="var(--muted)">' +
+         (v === Math.round(v) ? String(v) : fmt(v, 1)) + '</text>';
   }
   s += '<polyline fill="none" stroke="var(--line)" stroke-width="1.5" points="' +
     list.map(function(e,i){ return x(i).toFixed(1) + ',' + y(e.w).toFixed(1); }).join(' ') + '"/>';
@@ -1116,6 +1250,14 @@ function viewMore(){
       (mine ? '' : ' · из файла') + '</small></span>' + (mine ? '<span class="muted small">изменить</span>' : '') + '</button></li>';
   }
   h += '</ul></div><button class="btn" onclick="editPeriod(null)">Новый период</button></div>';
+
+  h += '<div class="card"><h2>Оформление</h2><div class="themes">';
+  const cur = (S.ui || {}).theme || '';
+  for (const t of THEMES){
+    h += '<button class="th' + (t.id === cur ? ' on' : '') + '" onclick="setTheme(\'' + t.id + '\')">' +
+      esc(t.name) + '</button>';
+  }
+  h += '</div></div>';
 
   h += '<div class="card"><h2>Сброс</h2>' +
     '<p class="small muted">Стирает записи дневника и заведённые периоды. План, программа и рецепты останутся.</p>' +
@@ -1323,6 +1465,17 @@ function bind(date){
     });
   });
 
+  view.querySelectorAll('[data-trip]').forEach(function(el){
+    el.addEventListener('click', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (el.dataset.trip){ e.trip = el.dataset.trip; }
+      else { delete e.trip; delete e.shopped; }
+      if (!Object.keys(e).length) delete S.log[date];
+      save();
+      render();
+    });
+  });
+
   view.querySelectorAll('[data-water]').forEach(function(el){
     el.addEventListener('click', function(){
       const e = S.log[date] || (S.log[date] = {});
@@ -1387,6 +1540,7 @@ document.querySelectorAll('nav button').forEach(function(b){
 });
 
 load();
+applyTheme();
 render();
 
 // На localhost воркер не поднимаем: при разработке он упорно отдаёт прошлую версию страницы.
