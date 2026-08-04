@@ -544,7 +544,9 @@ PRODUCTS = [
     ("pommes",     "Яблоки",              "fruit", "г",  0, ["яблок", "pomme"]),
     ("fruits",     "Фрукты, без разбора", "fruit", "г",  0, ["фрукт"]),
 
-    ("pain",       "Хлеб цельнозерновой", "bread", "г",  0, ["pain complet", "хлеб"]),
+    ("pain",       "Хлеб цельнозерновой", "bread", "г",  0, ["pain complet", "pain aux noix", "хлеб"]),
+    ("noix",       "Орехи и смеси",       "bread", "г",  0,
+     ["mélange de noix", "melange de noix", "mix apéritif", "mix aperitif", "mélange de graines", "pistache", "орех"]),
     ("epices",     "Специи",              "bread", "",   0, ["специи"]),
 
     ("huile",      "Оливковое масло",     "fat",   "мл", 0, ["huile", "оливков", "масло"]),
