@@ -639,6 +639,18 @@ function aiState(){
   if (!S.ai.messages) S.ai.messages = [];
   if (!S.ai.tickets) S.ai.tickets = [];
   if (!S.ai.purchases) S.ai.purchases = [];
+  if (!S.ai.migrations) S.ai.migrations = {};
+  // Чек 04.08 мог быть подтверждён до появления правил для этих позиций.
+  // Восстанавливаем только то, что старый импорт гарантированно пропустил.
+  const fixedReceipt = '1200093422026080420938';
+  if (S.ai.tickets.indexOf(fixedReceipt) >= 0 && !S.ai.migrations.aug04Missing){
+    addStock('bananes', 782);
+    addStock('protein_bar', 4);
+    addStock('coca_zero', 8000);
+    addStock('redbull_zero', 800);
+    S.ai.migrations.aug04Missing = 1;
+    save();
+  }
   return S.ai;
 }
 
