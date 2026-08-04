@@ -2,6 +2,8 @@
 plan16-data.json
 plan16-journal-*.json
 __pycache__/
+.deps/
+deploy/Caddyfile.server
 
 # передача проекта: рабочий документ, публиковать незачем
 CODEX.md

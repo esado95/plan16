@@ -421,7 +421,70 @@ PHOTOS = [
     ("chou-fleur", "23-gratin-chou-fleur"),
     ("tian", "24-tian-legumes"),
     ("champignons", "25-omelette-champignons"),
+    ("sauce-moutarde-citron", "26-sauce-moutarde-citron"),
+    ("gremolata", "27-gremolata"),
+    ("sauce-tomate-express", "28-sauce-tomate-express"),
+    ("sauce-au-fromage-blanc", "29-sauce-fromage-blanc"),
+    ("deglacage", "30-deglacage"),
+    ("sauce-soja-citron", "31-sauce-soja-citron"),
+    ("carottes-rapees", "32-carottes-rapees"),
+    ("salade-verte", "33-salade-verte"),
+    ("concombres-au-fromage-blanc", "34-concombres-fromage-blanc"),
+    ("salade-de-tomates", "35-salade-tomates"),
+    ("haricots-verts-en-salade", "36-haricots-verts-salade"),
+    ("salade-de-chou-blanc", "37-salade-chou-blanc"),
+    ("endives-a-la-vinaigrette", "38-endives-vinaigrette"),
+    ("salade-de-courgettes-crues", "39-salade-courgettes-crues"),
 ]
+
+
+# Французское название остаётся оригиналом блюда, русское объясняет смысл.
+# Ключ — устойчивый slug, поэтому перевод не зависит от номера раздела в заметке.
+RECIPE_RU = {
+    "baza-vinaigrette-maison": "Домашняя салатная заправка",
+    "poulet-basquaise": "Курица по-баскски с перцем и томатами",
+    "escalope-de-poulet-a-la-moutarde": "Куриное филе в горчичном соусе",
+    "saumon-en-papillote": "Лосось, запечённый в конверте",
+    "crevettes-a-l-ail-et-persil": "Креветки с чесноком и петрушкой",
+    "salade-de-lentilles": "Салат из чечевицы",
+    "piperade": "Баскские перцы с томатами",
+    "omelette-aux-fines-herbes": "Омлет со свежей зеленью",
+    "ratatouille": "Овощное рагу по-провансальски",
+    "poulet-roti-aux-herbes-de-provence": "Запечённая курица с прованскими травами",
+    "pot-au-feu": "Говядина с овощами в бульоне",
+    "blanquette-de-dinde": "Индейка в нежном белом соусе",
+    "hachis-parmentier": "Картофельная запеканка с мясом",
+    "cabillaud-a-la-provencale": "Треска по-провансальски с томатами",
+    "poulet-au-citron-et-aux-olives": "Курица с лимоном и оливками",
+    "truite-aux-amandes": "Форель с миндалём",
+    "salade-nicoise": "Нисуаз — салат с тунцом и яйцом",
+    "soupe-a-l-oignon-gratinee": "Луковый суп под сырной корочкой",
+    "potage-parmentier": "Крем-суп из картофеля и лука-порея",
+    "soupe-au-pistou": "Овощной суп с базиликовым соусом писту",
+    "ufs-cocotte-aux-epinards": "Яйца, запечённые со шпинатом",
+    "quiche-aux-poireaux-sans-pate": "Киш с луком-пореем без теста",
+    "gratin-de-chou-fleur": "Цветная капуста под сырной корочкой",
+    "tian-de-legumes-provencal": "Запечённые прованские овощи",
+    "omelette-aux-champignons": "Омлет с грибами",
+    "sauce-moutarde-citron": "Горчично-лимонный соус",
+    "gremolata": "Петрушка с чесноком и лимонной цедрой",
+    "sauce-tomate-express": "Быстрый томатный соус",
+    "sauce-au-fromage-blanc": "Лёгкий соус из fromage blanc",
+    "deglacage": "Соус из мясных соков со сковороды",
+    "sauce-soja-citron": "Соево-лимонный соус",
+    "carottes-rapees": "Салат из тёртой моркови",
+    "salade-verte": "Зелёный листовой салат",
+    "concombres-au-fromage-blanc": "Огурцы с соусом из fromage blanc",
+    "salade-de-tomates": "Салат из помидоров",
+    "haricots-verts-en-salade": "Салат из зелёной стручковой фасоли",
+    "salade-de-chou-blanc": "Салат из белокочанной капусты",
+    "endives-a-la-vinaigrette": "Эндивий с горчичной заправкой",
+    "salade-de-courgettes-crues": "Салат из сырых кабачков",
+}
+
+
+def recipe_ru(title):
+    return RECIPE_RU.get(slug(title), "")
 
 
 def photo_for(title):
@@ -459,6 +522,9 @@ PRODUCTS = [
 
     ("oeufs",      "Яйца",                "dairy", "шт", 6, ["oeuf", "œuf", "яйц"]),
     ("fromage",    "Fromage blanc 0%",    "dairy", "г",  500, ["fromage blanc"]),
+    ("lait",       "Молоко",              "dairy", "мл", 0, ["lait entier", "lait uht", "молоко"]),
+    ("fromage_tr", "Сыр в ломтиках",      "dairy", "г",  0, ["maasdam", "mimolette"]),
+    ("mozzarella", "Моцарелла",           "dairy", "г",  0, ["mozzarella"]),
     ("skyr",       "Скир",                "dairy", "г",  0, ["skyr", "скир"]),
 
     ("lentilles",  "Чечевица",            "grain", "г",  0, ["lentille", "чечевиц"]),
@@ -467,6 +533,7 @@ PRODUCTS = [
     ("semoule",    "Кускус",              "grain", "г",  0, ["semoule", "кускус"]),
     ("sarrasin",   "Гречка",              "grain", "г",  0, ["sarrasin", "гречк"]),
     ("boulgour",   "Булгур",              "grain", "г",  0, ["boulgour", "булгур"]),
+    ("pommes_terre", "Картофель",          "grain", "г",  0, ["pomme de terre", "картоф"]),
 
     ("surgeles",   "Овощи замороженные",  "veg",   "г",  0, ["surgel", "заморож"]),
     ("tomates",    "Помидоры",            "veg",   "г",  0, ["помидор", "tomate"]),
@@ -480,21 +547,34 @@ PRODUCTS = [
     ("concombre",  "Огурцы",              "veg",   "г",  0, ["огурц", "concombre"]),
     ("salade",     "Салат зелёный",       "veg",   "шт", 0, ["салат зел"]),
     ("haricots",   "Haricots verts",      "veg",   "г",  0, ["haricots verts", "фасоль"]),
+    ("champignons", "Шампиньоны",         "veg",   "г",  0, ["champignon", "шампинь"]),
+    ("tomates_boite", "Томаты консервированные", "veg", "г", 0,
+     ["tomates en morceaux", "tomates pelées", "томат консерв"]),
 
     ("pasteque",   "Арбуз",               "fruit", "г",  0, ["арбуз"]),
     ("abricots",   "Абрикосы",            "fruit", "г",  0, ["абрикос", "abricot"]),
     ("prunes",     "Сливы",               "fruit", "г",  0, ["слив", "prune"]),
     ("peches",     "Персики, нектарины",  "fruit", "г",  0, ["персик", "нектарин"]),
     ("pommes",     "Яблоки",              "fruit", "г",  0, ["яблок", "pomme"]),
+    ("bananes",    "Бананы",              "fruit", "г",  0, ["banane", "банан"]),
+    ("oranges",    "Апельсины",           "fruit", "г",  0, ["orange", "апельсин"]),
     ("fruits",     "Фрукты, без разбора", "fruit", "г",  0, ["фрукт"]),
 
-    ("pain",       "Хлеб цельнозерновой", "bread", "г",  0, ["pain complet", "хлеб"]),
+    ("pain",       "Хлеб цельнозерновой", "bread", "г",  0, ["pain complet", "pain aux noix", "хлеб"]),
+    ("noix",       "Орехи и смеси",       "bread", "г",  0,
+     ["mélange de noix", "melange de noix", "mix apéritif", "mix aperitif", "mélange de graines", "pistache", "орех"]),
     ("epices",     "Специи",              "bread", "",   0, ["специи"]),
+    ("protein_bar", "Протеиновые батончики", "bread", "шт", 0,
+     ["barres prot.", "barre proteinee", "протеиновый батончик"]),
 
     ("huile",      "Оливковое масло",     "fat",   "мл", 0, ["huile", "оливков", "масло"]),
     ("colza",      "Масло colza",         "fat",   "мл", 0, ["colza"]),
 
     ("eau",        "Вода",                "drink", "уп", 0, ["вода", "eau"]),
+    ("coca_zero",  "Coca-Cola Zero",      "drink", "мл", 0,
+     ["cc ss gde btl", "coca-cola zero", "coca cola zero", "кока-кола zero"]),
+    ("redbull_zero", "Red Bull без сахара", "drink", "мл", 0,
+     ["red bull sans sucres", "red bull zero", "red bull без сахара"]),
 ]
 
 UNITS = {"кг": 1000, "г": 1, "л": 1000, "мл": 1, "шт": 1}
@@ -653,7 +733,7 @@ def build_recipes(docs):
                 group = re.sub(r"^База\s*·\s*", "", s["title"]).strip()
                 if "vinaigrette" in slug(s["title"]) and s["html"]:
                     out.append({
-                        "id": slug(s["title"]), "title": group, "group": "База",
+                        "id": slug(s["title"]), "title": group, "titleRu": recipe_ru(s["title"]), "group": "База",
                         "doc": doc["id"], "sec": s["id"],
                         "photo": photo_for(s["title"]), "html": s["html"],
                     })
@@ -662,9 +742,9 @@ def build_recipes(docs):
                 continue
             name = re.sub(r"^\d+\s*·\s*", "", s["title"]).strip()
             out.append({
-                "id": slug(name), "title": name, "group": group,
+                "id": slug(name), "title": name, "titleRu": recipe_ru(name), "group": group,
                 "doc": doc["id"], "sec": s["id"],
-                "photo": s["photo"],          # проставлен в build_doc только тем документам, у кого есть фото
+                "photo": s["photo"] or photo_for(name),
                 "html": s["html"],
             })
     return out
