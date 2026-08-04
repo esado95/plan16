@@ -394,10 +394,10 @@ details > .secbody{padding-bottom:8px}
 .import-list{margin:0; padding:0 12px; list-style:none}
 .import-list li{display:flex; align-items:baseline; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:13.5px}
 .import-list li:first-child{border-top:0}.import-list span{flex:1}.import-list b{font:650 13px/1 var(--fn); color:var(--a2); white-space:nowrap}
-.stock-strip{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:10px 0}
-.stock-tile{background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:10px}
-.stock-tile span{display:block; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.stock-tile b{display:block; margin-top:2px; font:680 17px/1.25 var(--fn)}
+.receipt-history{margin:12px 0}.receipt-history>details{border:1px solid var(--line);border-radius:11px;margin-top:8px;overflow:hidden}
+.receipt-history>details>summary{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg)}
+.receipt-history>details>summary:before{content:'+';color:var(--a1);width:14px}.receipt-history>details[open]>summary:before{content:'−'}
+.receipt-history>details>summary span{flex:1}.receipt-history>details>summary b{display:block;font-size:13.5px}.receipt-history>details>summary small{display:block;color:var(--muted);font-weight:400;margin-top:2px}
 .success-card{border-color:color-mix(in srgb,var(--a2) 45%,var(--line)); background:color-mix(in srgb,var(--a2) 7%,var(--card))}
 .purchase-panel{padding:0;overflow:hidden}.purchase-panel>summary{display:flex;align-items:center;gap:11px;padding:13px 15px}
 .purchase-panel>summary:before{display:none}.purchase-panel>summary .sync-icon{width:34px;height:34px;border-radius:10px}
@@ -749,10 +749,10 @@ function applySync(){
   for (const x of grouped) addStock(x.product.id, x.qty);
   ai.tickets = ai.tickets.concat(picked.map(function(p){ return p.receipt.id; }));
   ai.purchases = ai.purchases.concat(picked.map(function(p){
-    return {date:p.receipt.date, id:p.receipt.id, items:p.mapped.map(function(x){
+    return {date:p.receipt.date, id:p.receipt.id, store:p.receipt.store || 'Lidl', items:p.mapped.map(function(x){
       return {name:x.product.name, quantity:x.qty, unit:x.product.unit};
     })};
-  })).slice(-6);
+  })).slice(-20);
   ai.lastImport = {date:today(), receipts:picked.length, products:grouped.map(function(x){
     return {name:x.product.name, added:x.qty, unit:x.product.unit, total:stockLeft(x.product.id)};
   })};
@@ -824,7 +824,7 @@ function viewAI(){
   const available = stockList().filter(function(x){ return stockLeft(x.id) > 0; });
   let lidl = '<details class="card purchase-panel' + (syncMessage.indexOf('Готово') === 0 ? ' success-card' : '') + '"' + (syncDraft ? ' open' : '') + '>' +
     '<summary><div class="sync-icon">✓</div><span><b>Покупки и запасы</b><small>' +
-    (available.length ? plural(available.length,'позиция','позиции','позиций') + ' в наличии' : 'запасы пока не заполнены') +
+    (ai.purchases.length ? 'Последний чек: ' + human(ai.purchases[ai.purchases.length - 1].date) : 'Импортированных чеков пока нет') +
     '</small></span></summary><div class="purchase-body">';
   if (syncMessage) lidl += '<div class="sync-note" style="margin-top:12px">' + esc(syncMessage) + '</div>';
   if (syncDraft){
@@ -844,11 +844,18 @@ function viewAI(){
     });
     lidl += '<div class="row2"><button class="btn" onclick="cancelSync()">Отмена</button><button class="btn acc" onclick="applySync()">Добавить в запасы</button></div>';
   } else {
-    if (available.length){
-      lidl += '<div class="stock-strip">' + available.slice(0,6).map(function(x){ return '<div class="stock-tile"><span>' + esc(x.name) +
-        '</span><b>' + esc(fmtQty(stockLeft(x.id), x.unit)) + '</b></div>'; }).join('') + '</div>';
-      if (available.length > 6) lidl += '<p class="hint">И ещё ' + (available.length - 6) + ' позиций в разделе «Кухня → Продукты».</p>';
+    if (ai.purchases.length){
+      lidl += '<div class="receipt-history"><div class="small muted">Добавленные чеки</div>';
+      ai.purchases.slice().reverse().forEach(function(p){
+        const items = p.items || [];
+        lidl += '<details><summary><span><b>' + esc(human(p.date)) + '</b><small>' + esc(p.store || 'Lidl') + '</small></span>' +
+          '<strong>' + plural(items.length,'позиция','позиции','позиций') + '</strong></summary>' +
+          '<ul class="import-list">' + items.map(function(x){ return '<li><span>' + esc(x.name) + '</span><b>+' +
+            esc(fmtQty(x.quantity, x.unit)) + '</b></li>'; }).join('') + '</ul></details>';
+      });
+      lidl += '</div>';
     }
+    if (available.length) lidl += '<p class="hint">Текущие количества: «Кухня → Продукты».</p>';
     lidl += '<button class="btn" onclick="syncLidl(this)">Найти новые чеки</button>';
   }
   lidl += '</div></details>';
