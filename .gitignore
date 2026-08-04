@@ -2,3 +2,6 @@
 plan16-data.json
 plan16-journal-*.json
 __pycache__/
+
+# передача проекта: рабочий документ, публиковать незачем
+CODEX.md
