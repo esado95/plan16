@@ -432,21 +432,48 @@ def photo_for(title):
     return ""
 
 
-# Учёт запасов. Ключевые слова ищутся в строке списка покупок; расход берётся
-# из состава приёмов, поэтому списывается только то, что реально отмечено съеденным.
+# Каталог кухни: категория, единица, дневной расход по составу приёмов и
+# ключевые слова, по которым строка списка покупок ложится в нужный продукт.
+# Расход стоит только там, где он предсказуем; у остального просто остаток.
 PRODUCTS = [
-    ("poulet",    "Курица",          "г",  {"Приём 1": 400}, ["poulet", "курин", "курица"]),
-    ("oeufs",     "Яйца",            "шт", {"Приём 2": 6},   ["œuf", "oeuf", "яйц"]),
-    ("fromage",   "Fromage blanc",   "г",  {"Приём 2": 500}, ["fromage blanc"]),
-    ("lentilles", "Чечевица",        "г",  {"Приём 1": 100}, ["lentille", "чечевиц"]),
-    ("legumes",   "Овощи",           "г",  {"Приём 1": 400, "Приём 2": 400},
-     ["légumes", "legumes", "помидор", "кабач", "перец", "огурц", "салат", "морков", "лук"]),
-    ("fruits",    "Фрукты",          "г",  {}, ["фрукт"]),
-    ("pain",      "Хлеб",            "г",  {}, ["pain"]),
-    ("huile",     "Оливковое масло", "мл", {"Приём 1": 20, "Приём 2": 10}, ["huile", "масло"]),
+    ("poulet",    "Курица, грудка",     "Белок",   "г",  {"Приём 1": 400}, ["blanc de poulet", "курин", "курица"]),
+    ("oeufs",     "Яйца",               "Белок",   "шт", {"Приём 2": 6},   ["œuf", "oeuf", "яйц"]),
+    ("fromage",   "Fromage blanc 0%",   "Белок",   "г",  {"Приём 2": 500}, ["fromage blanc"]),
+    ("thon",      "Тунец в банке",      "Белок",   "шт", {}, ["thon", "тунец"]),
+    ("saumon",    "Лосось",             "Белок",   "г",  {}, ["saumon", "лосось"]),
+    ("crevettes", "Креветки",           "Белок",   "г",  {}, ["crevette", "креветк"]),
+
+    ("lentilles", "Чечевица",           "Гарниры", "г",  {"Приём 1": 100}, ["lentille", "чечевиц"]),
+    ("riz",       "Рис",                "Гарниры", "г",  {}, ["riz", "рис"]),
+    ("pates",     "Макароны",           "Гарниры", "г",  {}, ["pâtes", "pates", "макарон"]),
+    ("semoule",   "Кускус",             "Гарниры", "г",  {}, ["semoule", "кускус"]),
+
+    ("legumes",   "Овощи, всего за день", "Овощи", "г",  {"Приём 1": 400, "Приём 2": 400}, []),
+    ("surgeles",  "Овощи замороженные", "Овощи",   "г",  {}, ["surgel", "заморож"]),
+    ("tomates",   "Помидоры",           "Овощи",   "г",  {}, ["помидор", "tomate"]),
+    ("poivrons",  "Перец",              "Овощи",   "г",  {}, ["перец", "poivron"]),
+    ("oignons",   "Лук",                "Овощи",   "г",  {}, ["лук", "oignon"]),
+    ("ail",       "Чеснок",             "Овощи",   "шт", {}, ["чеснок", "ail"]),
+    ("carottes",  "Морковь",            "Овощи",   "г",  {}, ["морков", "carotte"]),
+    ("courgettes","Кабачки",            "Овощи",   "г",  {}, ["кабач", "courgette"]),
+    ("aubergine", "Баклажан",           "Овощи",   "шт", {}, ["баклажан", "aubergine"]),
+    ("chou",      "Капуста",            "Овощи",   "шт", {}, ["капуст", "chou"]),
+    ("concombre", "Огурцы",             "Овощи",   "г",  {}, ["огурц", "concombre"]),
+    ("salade",    "Салат зелёный",      "Овощи",   "шт", {}, ["салат зел"]),
+    ("haricots",  "Haricots verts",     "Овощи",   "г",  {}, ["haricots verts", "фасоль"]),
+
+    ("fruits",    "Фрукты",             "Прочее",  "г",  {}, ["фрукт"]),
+    ("pain",      "Хлеб цельнозерновой","Прочее",  "г",  {}, ["pain complet", "хлеб"]),
+    ("huile",     "Оливковое масло",    "Прочее",  "мл", {"Приём 1": 20, "Приём 2": 10}, ["huile", "масло"]),
+    ("eau",       "Вода",               "Прочее",  "уп", {}, ["вода", "eau"]),
+    ("epices",    "Специи",             "Прочее",  "",   {}, ["специи", "épices"]),
 ]
 
 UNITS = {"кг": 1000, "г": 1, "л": 1000, "мл": 1, "шт": 1}
+
+
+# В списке пишут «1 бутылка» и «1 буханка» — это привычнее, чем граммы.
+PACKS = {"бутылк": 750, "буханк": 500}
 
 
 def parse_qty(amount, name):
@@ -455,6 +482,11 @@ def parse_qty(amount, name):
     if masses:
         value, unit = masses[-1]
         return num_or(value) * UNITS[unit], "масса"
+
+    for word, size in PACKS.items():
+        if word in amount.lower():
+            m = re.match(r"\s*(\d+)", amount)
+            return (int(m.group(1)) if m else 1) * size, "масса"
 
     count = re.match(r"\s*(\d+(?:[.,]\d+)?)", amount)
     if not count:
@@ -465,7 +497,7 @@ def parse_qty(amount, name):
 
 def product_for(name):
     low = name.lower()
-    for pid, _, _, _, keys in PRODUCTS:
+    for pid, _, _, _, _, keys in PRODUCTS:
         if any(k in low for k in keys):
             return pid
     return None
@@ -492,8 +524,8 @@ def build_shopping():
             if not pid:
                 continue
             qty, kind = parse_qty(row[1], row[0])
-            unit = by_id[pid][2]
-            if qty is None or (kind == "штуки") != (unit == "шт"):
+            unit = by_id[pid][3]
+            if qty is None or (kind == "штуки") != (unit in ("шт", "уп")):
                 print("  ! «%s | %s» не пересчитывается в %s, в запас не пойдёт" % (row[0], row[1], unit))
                 continue
             items.append({"id": pid, "name": row[0], "amount": row[1], "product": pid, "qty": qty})
@@ -508,7 +540,7 @@ def build_shopping():
 
 
 def build_stock():
-    return [{"id": p, "name": n, "unit": u, "perMeal": m} for p, n, u, m, _ in PRODUCTS]
+    return [{"id": p, "name": n, "cat": c, "unit": u, "perMeal": m} for p, n, c, u, m, _ in PRODUCTS]
 
 
 def build_doc(filename, doc_id, title, photos=False):
