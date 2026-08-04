@@ -301,6 +301,12 @@ details > .secbody{padding-bottom:8px}
 .empty p{max-width:340px; margin:0 auto 16px}
 .hint{font-size:12.5px; color:var(--muted); margin-top:8px}
 .saved{color:var(--a2); font-size:12.5px; height:16px; margin-top:6px}
+.chat{display:flex; flex-direction:column; gap:9px; margin:10px 0 14px}
+.msg{max-width:88%; padding:10px 12px; border-radius:12px; font-size:14px; white-space:pre-wrap}
+.msg.me{align-self:flex-end; background:var(--a1); color:#fff; border-bottom-right-radius:3px}
+.msg.ai{align-self:flex-start; background:var(--bg); border:1px solid var(--line); border-bottom-left-radius:3px}
+.sync-note{padding:9px 11px; border-radius:9px; background:color-mix(in srgb,var(--a2) 10%,transparent); font-size:13px}
+.spin{opacity:.65; pointer-events:none}
 </style>
 </head>
 <body>
@@ -316,6 +322,7 @@ details > .secbody{padding-bottom:8px}
   <button data-tab="today" class="on"><b>◉</b>Сегодня</button>
   <button data-tab="plan"><b>▤</b>План</button>
   <button data-tab="food"><b>◍</b>Кухня</button>
+  <button data-tab="ai"><b>✦</b>Помощник</button>
   <button data-tab="more"><b>⚙</b>Ещё</button>
 </nav>
 
@@ -329,6 +336,7 @@ const SKEY = 'plan16.state';
 const WD = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
 const WD_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const MON = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const API = '/api/plan16';
 
 let D = null;                 // содержимое: периоды, блюда, документы
 let S = blank();              // дневник и настройки — только моё
@@ -338,7 +346,7 @@ let openRow = null;           // какая строка дня раскрыта
 let openRecipe = null;
 let openDoc = null;           // какой справочник открыт на вкладке «Кухня»
 
-function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, stock:{}, ui:{}}; }
+function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, stock:{}, ui:{}, ai:{messages:[],tickets:[],purchases:[]}}; }
 
 /* ─────────────── остатки продуктов ─────────────── */
 
@@ -515,6 +523,145 @@ function setStock(el){
   render();
 }
 
+/* ─────────────── Lidl и AI ─────────────── */
+
+const PACK_GRAMS = {
+  '0083009':200, '0083015':250, '0025808':300, '0149943':160, '0000449':300,
+  '0153924':240, '0152058':150, '5605644':300, '0183018':400,
+  '0001638':400, '5613066':500, '5621955':500, '0129674':200,
+  '5621466':1000
+};
+const PACK_ML = {'5622850':1000};
+
+function aiState(){
+  if (!S.ai) S.ai = {messages:[], tickets:[], purchases:[]};
+  if (!S.ai.messages) S.ai.messages = [];
+  if (!S.ai.tickets) S.ai.tickets = [];
+  if (!S.ai.purchases) S.ai.purchases = [];
+  return S.ai;
+}
+
+function normText(s){
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+function purchaseProduct(item){
+  const name = normText(item.name);
+  return stockList().find(function(p){
+    return (p.keys || []).some(function(k){ return name.indexOf(normText(k)) >= 0; });
+  });
+}
+
+function purchaseQty(item, p){
+  const count = Number(item.quantity) || 0;
+  if (p.unit === 'шт' || p.unit === 'уп') return count;
+  if (item.weighted && p.unit === 'г') return count * 1000;
+  const fixed = p.unit === 'мл' ? PACK_ML[item.article] : PACK_GRAMS[item.article];
+  if (fixed) return fixed * count;
+  const m = String(item.name).match(/(\d+(?:[.,]\d+)?)\s*(kg|кг|g|г|l|л|ml|мл)\b/i);
+  if (!m) return null;
+  let n = Number(m[1].replace(',','.'));
+  const u = m[2].toLowerCase();
+  if (u === 'kg' || u === 'кг' || u === 'l' || u === 'л') n *= 1000;
+  return n * count;
+}
+
+function receiptPlan(receipt){
+  const mapped = [], unknown = [];
+  for (const item of receipt.items || []){
+    const p = purchaseProduct(item);
+    const qty = p && purchaseQty(item, p);
+    if (p && qty != null) mapped.push({product:p, qty:qty, source:item.name});
+    else unknown.push(item.name);
+  }
+  return {receipt:receipt, mapped:mapped, unknown:unknown};
+}
+
+async function syncLidl(btn){
+  if (btn) btn.classList.add('spin');
+  try {
+    const res = await fetch(API + '/purchases?days=14', {credentials:'same-origin'});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json(), ai = aiState();
+    const fresh = (data.receipts || []).filter(function(r){ return ai.tickets.indexOf(r.id) < 0; });
+    if (!fresh.length){ alert('Новых чеков Lidl нет.'); return; }
+    const plans = fresh.map(receiptPlan);
+    const mapped = plans.reduce(function(a,p){ return a.concat(p.mapped); }, []);
+    const unknown = plans.reduce(function(a,p){ return a.concat(p.unknown); }, []);
+    const text = fresh.length + ' чек(а), ' + mapped.length + ' позиций попадут в остатки.' +
+      (unknown.length ? '\nНе удалось посчитать: ' + unknown.slice(0,8).join(', ') +
+      (unknown.length > 8 ? '…' : '') : '') + '\n\nДобавить распознанные позиции?';
+    if (!confirm(text)) return;
+    for (const x of mapped) addStock(x.product.id, x.qty);
+    ai.tickets = ai.tickets.concat(fresh.map(function(r){ return r.id; }));
+    ai.purchases = fresh.slice(-3).map(function(r){
+      return {date:r.date, items:(r.items || []).map(function(x){ return x.name; })};
+    });
+    save(); render();
+    alert('Остатки обновлены: ' + mapped.length + ' позиций.');
+  } catch(e){ alert('Не удалось получить покупки: ' + e.message); }
+  finally { if (btn) btn.classList.remove('spin'); }
+}
+
+function aiContext(){
+  const p = currentPeriod(), day = dayFor(today()), ai = aiState();
+  return {
+    date: today(),
+    period: p ? {title:p.title, start:p.start, end:p.end || ''} : null,
+    todayPlan: day ? {gym:day.gym || '', topic:day.topic || '', lunch:day.lunch || '', dinner:day.dinner || ''} : null,
+    stock: stockList().map(function(x){
+      return {name:x.name, category:x.cat, unit:x.unit, left:stockLeft(x.id), days:daysLeft(x)};
+    }),
+    recentPurchases: ai.purchases.slice(-3),
+    recentJournal: entries().slice(-5).map(function(e){
+      return {date:e.date, weight:e.w, sleep:e.sleep, mood:e.mood, note:e.note || ''};
+    }),
+    conversation: ai.messages.slice(-6)
+  };
+}
+
+async function askAI(){
+  const input = document.getElementById('ai-input');
+  const message = input && input.value.trim();
+  if (!message) return;
+  const ai = aiState();
+  ai.messages.push({role:'user', text:message});
+  save(); render();
+  const button = document.getElementById('ai-send');
+  if (button) button.classList.add('spin');
+  try {
+    const res = await fetch(API + '/chat', {
+      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:message, context:aiContext()})
+    });
+    const data = await res.json().catch(function(){ return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    ai.messages.push({role:'assistant', text:data.answer});
+  } catch(e){ ai.messages.push({role:'assistant', text:'Не удалось ответить: ' + e.message}); }
+  ai.messages = ai.messages.slice(-20);
+  save(); render();
+}
+
+function clearAI(){
+  if (!confirm('Очистить историю диалога? Остатки и покупки останутся.')) return;
+  aiState().messages = []; save(); render();
+}
+
+function viewAI(){
+  const ai = aiState();
+  let h = '<div class="card"><h2>Покупки Lidl</h2>' +
+    '<p class="small muted">Новый чек добавляется в остатки один раз. Неизвестные упаковки приложение пропустит.</p>' +
+    '<button class="btn" onclick="syncLidl(this)">Проверить новые чеки</button>' +
+    (ai.purchases.length ? '<p class="hint">Последняя синхронизация: ' + esc(ai.purchases[ai.purchases.length-1].date) + '</p>' : '') + '</div>';
+  h += '<div class="card"><h2>Помощник</h2><p class="small muted">Знает текущий план, остатки и последние импортированные покупки.</p><div class="chat">';
+  if (!ai.messages.length) h += '<div class="msg ai">Спроси, чего не хватает, что приготовить или что докупить на несколько дней.</div>';
+  for (const m of ai.messages) h += '<div class="msg ' + (m.role === 'user' ? 'me' : 'ai') + '">' + esc(m.text) + '</div>';
+  h += '</div><textarea id="ai-input" maxlength="2000" placeholder="Например: чего не хватает на ближайшие три дня?"></textarea>' +
+    '<button class="btn acc" id="ai-send" onclick="askAI()">Спросить</button>' +
+    (ai.messages.length ? '<button class="btn" onclick="clearAI()">Очистить диалог</button>' : '') + '</div>';
+  return h;
+}
+
 const THEMES = [
   {id: '',           name: 'Как в системе'},
   {id: 'soft-dark',  name: 'Мягкая тёмная'},
@@ -580,6 +727,18 @@ function load(){
 }
 function save(){ try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e){ alert('Не удалось сохранить: ' + e.message); } }
 function saveData(){ try { localStorage.setItem(DKEY, JSON.stringify(D)); } catch(e){ alert('Не хватило места в памяти телефона.'); } }
+
+async function refreshServerData(){
+  try {
+    const res = await fetch('plan16-data.json', {cache:'no-store'});
+    if (!res.ok) return;
+    const obj = await res.json();
+    if (!obj.periods || !obj.docs) return;
+    if (!D || JSON.stringify(D.stock) !== JSON.stringify(obj.stock) || D.generated !== obj.generated){
+      D = obj; saveData(); render();
+    }
+  } catch(e){}
+}
 
 /* ─────────────── периоды и дни ─────────────── */
 
@@ -1856,17 +2015,17 @@ function render(){
 
   document.getElementById('h-title').textContent =
     tab === 'today' ? (p ? p.title : 'План') :
-    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : 'Ещё';
+    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : tab === 'ai' ? 'Помощник' : 'Ещё';
 
   document.getElementById('h-sub').textContent =
     tab === 'today' ? humanFull(today()) :
     tab === 'plan' ? (p ? human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') : 'Периодов нет') :
-    tab === 'food' ? 'Блюда, соусы, рацион' : 'Дневник, файл, периоды';
+    tab === 'food' ? 'Блюда, соусы, рацион' : tab === 'ai' ? 'Lidl, остатки и советы' : 'Дневник, файл, периоды';
 
   view.innerHTML =
     tab === 'today' ? viewToday() :
     tab === 'plan' ? viewPlan() :
-    tab === 'food' ? viewFood() : viewMore();
+    tab === 'food' ? viewFood() : tab === 'ai' ? viewAI() : viewMore();
 
   if (tab === 'today') bind(today());
 
@@ -1884,6 +2043,7 @@ document.querySelectorAll('nav button').forEach(function(b){
 load();
 applyTheme();
 render();
+refreshServerData();
 
 // На localhost воркер не поднимаем: при разработке он упорно отдаёт прошлую версию страницы.
 if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){

@@ -459,6 +459,9 @@ PRODUCTS = [
 
     ("oeufs",      "Яйца",                "dairy", "шт", 6, ["oeuf", "œuf", "яйц"]),
     ("fromage",    "Fromage blanc 0%",    "dairy", "г",  500, ["fromage blanc"]),
+    ("lait",       "Молоко",              "dairy", "мл", 0, ["lait entier", "lait uht", "молоко"]),
+    ("fromage_tr", "Сыр в ломтиках",      "dairy", "г",  0, ["maasdam", "mimolette"]),
+    ("mozzarella", "Моцарелла",           "dairy", "г",  0, ["mozzarella"]),
     ("skyr",       "Скир",                "dairy", "г",  0, ["skyr", "скир"]),
 
     ("lentilles",  "Чечевица",            "grain", "г",  0, ["lentille", "чечевиц"]),
@@ -467,6 +470,7 @@ PRODUCTS = [
     ("semoule",    "Кускус",              "grain", "г",  0, ["semoule", "кускус"]),
     ("sarrasin",   "Гречка",              "grain", "г",  0, ["sarrasin", "гречк"]),
     ("boulgour",   "Булгур",              "grain", "г",  0, ["boulgour", "булгур"]),
+    ("pommes_terre", "Картофель",          "grain", "г",  0, ["pomme de terre", "картоф"]),
 
     ("surgeles",   "Овощи замороженные",  "veg",   "г",  0, ["surgel", "заморож"]),
     ("tomates",    "Помидоры",            "veg",   "г",  0, ["помидор", "tomate"]),
@@ -480,6 +484,9 @@ PRODUCTS = [
     ("concombre",  "Огурцы",              "veg",   "г",  0, ["огурц", "concombre"]),
     ("salade",     "Салат зелёный",       "veg",   "шт", 0, ["салат зел"]),
     ("haricots",   "Haricots verts",      "veg",   "г",  0, ["haricots verts", "фасоль"]),
+    ("champignons", "Шампиньоны",         "veg",   "г",  0, ["champignon", "шампинь"]),
+    ("tomates_boite", "Томаты консервированные", "veg", "г", 0,
+     ["tomates en morceaux", "tomates pelées", "томат консерв"]),
 
     ("pasteque",   "Арбуз",               "fruit", "г",  0, ["арбуз"]),
     ("abricots",   "Абрикосы",            "fruit", "г",  0, ["абрикос", "abricot"]),
