@@ -419,6 +419,24 @@ def photo_for(title):
     return ""
 
 
+def build_shopping():
+    """Походы за продуктами: дата → что взять. Свежее берётся волнами по пять дней."""
+    out = []
+    for title, body in split_headings(read("Закуп.md"), 1)[1]:
+        if not title.startswith("Поход"):
+            continue
+        m = re.search(r"(\d{1,2})\s+([а-яё]+)", title)
+        if not m:
+            print("  ! в заголовке «%s» не нашлась дата" % title)
+            continue
+        out.append({
+            "title": title,
+            "date": date(YEAR, MONTHS[m.group(2)], int(m.group(1))).isoformat(),
+            "html": html(body),
+        })
+    return sorted(out, key=lambda x: x["date"])
+
+
 def build_doc(filename, doc_id, title, photos=False):
     """Документ → плоский список разделов в порядке текста.
 
@@ -482,6 +500,7 @@ def build_recipes(docs):
 def main():
     docs = [
         build_doc("Рацион.md", "racion", "Рацион"),
+        build_doc("Закуп.md", "achats", "Закуп"),
         build_doc("Французская_кухня.md", "cuisine", "Французская кухня", photos=True),
         build_doc("Французская_кухня_2.md", "cuisine2", "Ещё блюда", photos=True),
         build_doc("Салаты_и_соусы.md", "salades", "Салаты и соусы"),
@@ -498,6 +517,7 @@ def main():
         "periods": [sprint],
         "curriculum": curriculum,
         "nutrition": build_nutrition(),
+        "shopping": build_shopping(),
         "recipes": build_recipes(docs),
         "docs": docs,
     }
@@ -510,6 +530,8 @@ def main():
           % (len(data["periods"]), len(p["days"]), len(p["checklist"]), len(p["schedule"])))
     print("блюд: %d (с фото %d), документов: %d"
           % (len(data["recipes"]), sum(1 for r in data["recipes"] if r["photo"]), len(docs)))
+    print("закуп: %s" % ", ".join(x["date"] for x in data["shopping"]))
+
     n = data["nutrition"]
     print("рацион: норма %s ккал, приёмов %d, гарнир по плану %s, вариантов замены %d"
           % (n["norm"].get("kcal", "?"), len(n["meals"]),

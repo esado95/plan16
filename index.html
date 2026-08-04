@@ -415,6 +415,7 @@ function viewToday(){
   }
   h += '</div>';
 
+  h += shoppingCard(day);
   h += repCard(day);
   h += scheduleCard(d, day);
 
@@ -431,6 +432,22 @@ function viewToday(){
 function range(text){
   const m = String(text || '').match(/(\d+)(?:\s*[–—-]\s*(\d+))?/);
   return m ? [+m[1], m[2] ? +m[2] : +m[1]] : null;
+}
+
+/* ─────────────── закуп ─────────────── */
+
+function shoppingCard(day){
+  const trips = (D && D.shopping) || [];
+  const trip = trips.find(function(t){ return t.date === day; });
+  if (!trip) return '';
+
+  const done = !!(S.log[day] || {}).shopped;
+  let h = '<div class="card"><h2>Сегодня закуп</h2>';
+  h += '<ul class="check"><li><label><input type="checkbox" data-shopped' + (done ? ' checked' : '') +
+    '><span>Сходил, всё купил</span></label></li></ul>';
+  h += '<div class="md">' + trip.html + '</div>';
+  h += '</div>';
+  return h;
 }
 
 function nut(){ return D && D.nutrition && D.nutrition.meals ? D.nutrition : null; }
@@ -1091,6 +1108,16 @@ function bind(date){
       (S.log[date] || (S.log[date] = {})).side = el.value;
       save();
       render();
+    });
+  });
+
+  view.querySelectorAll('[data-shopped]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (el.checked) e.shopped = 1; else delete e.shopped;
+      if (!Object.keys(e).length) delete S.log[date];
+      save();
+      flash();
     });
   });
 
