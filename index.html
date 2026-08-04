@@ -370,8 +370,8 @@ details > .secbody{padding-bottom:8px}
 .hint{font-size:12.5px; color:var(--muted); margin-top:8px}
 .saved{color:var(--a2); font-size:12.5px; height:16px; margin-top:6px}
 .chat-card{padding:0;overflow:hidden}.chat-top{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line)}
-.chat-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--a1) 16%,var(--bg));color:var(--a1);font-size:17px}
-.chat-top b{display:block;font-size:14px}.chat-top small{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.chat-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,var(--a1),color-mix(in srgb,var(--a1) 55%,#7b61ff));color:#fff;font-size:18px;box-shadow:0 6px 18px color-mix(in srgb,var(--a1) 24%,transparent)}
+.chat-top b{display:block;font:680 15px/1.25 var(--fn);letter-spacing:-.01em}.chat-top small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11.5px;margin-top:3px}
 .chat-top small:before{content:'';width:6px;height:6px;border-radius:50%;background:var(--a2)}
 .chat{min-height:260px;max-height:58vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:18px 15px}
 .msg{max-width:min(82%,620px);padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.48;white-space:pre-wrap}
@@ -426,7 +426,7 @@ details > .secbody{padding-bottom:8px}
   <button data-tab="today" class="on"><b>◉</b>Сегодня</button>
   <button data-tab="plan"><b>▤</b>План</button>
   <button data-tab="food"><b>◍</b>Кухня</button>
-  <button data-tab="ai"><b>✦</b>Чат</button>
+  <button data-tab="ai"><b>✦</b>Plan AI</button>
   <button data-tab="more"><b>⚙</b>Ещё</button>
 </nav>
 
@@ -859,7 +859,7 @@ function viewAI(){
     lidl += '<button class="btn" onclick="syncLidl(this)">Найти новые чеки</button>';
   }
   lidl += '</div></details>';
-  let h = '<div class="card chat-card"><div class="chat-top"><div class="chat-avatar">✦</div><div><b>Диалог</b><small>на связи</small></div></div><div class="chat" id="chat-thread">';
+  let h = '<div class="card chat-card"><div class="chat-top"><div class="chat-avatar">✦</div><div><b>Plan AI</b><small>контекст Plan16 подключён</small></div></div><div class="chat" id="chat-thread">';
   if (!ai.messages.length) h += '<div class="msg ai">Привет, Саид. Я на связи.</div>';
   for (const m of ai.messages) h += '<div class="msg ' + (m.role === 'user' ? 'me' : 'ai') + '">' + esc(m.text) + '</div>';
   if (aiWaiting) h += '<div class="msg ai typing" aria-label="Ответ формируется"><i></i><i></i><i></i></div>';
@@ -2315,12 +2315,12 @@ function render(){
 
   document.getElementById('h-title').textContent =
     tab === 'today' ? (p ? p.title : 'План') :
-    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : tab === 'ai' ? 'Чат' : 'Ещё';
+    tab === 'plan' ? 'План' : tab === 'food' ? 'Кухня' : tab === 'ai' ? 'Plan AI' : 'Ещё';
 
   document.getElementById('h-sub').textContent =
     tab === 'today' ? humanFull(today()) :
     tab === 'plan' ? (p ? human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') : 'Периодов нет') :
-    tab === 'food' ? 'Блюда, соусы, рацион' : tab === 'ai' ? 'Разговор с учётом твоего плана' : 'Дневник, файл, периоды';
+    tab === 'food' ? 'Блюда, соусы, рацион' : tab === 'ai' ? 'Персональный интеллект' : 'Дневник, файл, периоды';
 
   view.innerHTML =
     tab === 'today' ? viewToday() :
