@@ -82,6 +82,43 @@ hr{border:0; border-top:1px solid var(--line); margin:14px 0}
   border-color:color-mix(in srgb, var(--a2) 22%, transparent)}
 button.chip{cursor:pointer; font-family:inherit}
 
+/* сводка дня */
+.zone-h{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px}
+.zone-h h2{margin:0}
+.ring{display:flex; align-items:center; gap:13px; margin:12px 0 4px}
+.ring svg{flex:none}
+.ring .n{font-size:20px; font-weight:680; letter-spacing:-.02em}
+.bars{display:flex; flex-direction:column; gap:9px; margin-top:12px}
+.bar-row{display:grid; grid-template-columns:1fr auto; gap:2px 8px; font-size:12.5px}
+.track{grid-column:1/-1; height:6px; border-radius:99px; background:var(--line); overflow:hidden}
+.fill{height:100%; border-radius:99px; background:var(--a1)}
+.step{
+  background:var(--bg); border:1px solid var(--line); border-radius:8px; color:var(--ink);
+  font:inherit; font-size:13px; padding:5px 10px; cursor:pointer;
+}
+
+/* таймлайн дня: одно дело — одна строка */
+.tl{margin:0; padding:0; list-style:none}
+.tl li{border-top:1px solid var(--line)}
+.tl li:first-child{border-top:0}
+.tl .row{display:flex; gap:10px; align-items:flex-start; padding:10px 0}
+.tl .t{
+  color:var(--a1); font-variant-numeric:tabular-nums; font-weight:600;
+  min-width:42px; flex:none; font-size:13px; padding-top:2px;
+}
+.tl label{display:flex; gap:10px; align-items:flex-start; flex:1; cursor:pointer}
+.tl input[type=checkbox]{width:21px; height:21px; margin:0; accent-color:var(--a2); flex:none}
+.tl .txt{flex:1; font-size:14px; line-height:1.45}
+.tl input:checked + .txt{color:var(--muted)}
+.tl .more{
+  background:none; border:0; color:var(--a1); font:inherit; font-size:13px;
+  padding:0 0 10px 52px; cursor:pointer; display:block; text-align:left;
+}
+.tl .detail{padding:0 0 12px 52px}
+.tl .detail .md{font-size:13.5px}
+.tl .grp{padding:14px 0 2px; font-size:11.5px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase}
+.tl li.grp-row{border-top:0}
+
 /* расписание */
 .sched{margin:0; padding:0; list-style:none}
 .sched li{display:flex; gap:12px; padding:6px 0; border-top:1px solid var(--line); font-size:14px}
@@ -237,7 +274,7 @@ let D = null;                 // содержимое: периоды, блюд�
 let S = blank();              // дневник и настройки — только моё
 let tab = 'today';
 let openDay = null;           // какой день раскрыт на вкладке «План»
-let openMeal = null;          // какой приём пищи раскрыт в распорядке
+let openRow = null;           // какая строка дня раскрыта
 let openRecipe = null;
 let openDoc = null;           // какой справочник открыт на вкладке «Кухня»
 
@@ -396,39 +433,190 @@ function viewToday(){
       '<button class="btn acc" onclick="go(\'more\')">Открыть настройки</button></div>' + logForm(day, null);
   }
 
-  let h = logForm(day, d.period);   // день начинается с весов, поэтому запись первая
+  const rows = dayRows(d, day);
+  let h = summaryCard(d, day, rows);
+  for (const z of ZONES) h += zoneCard(z, day, rows);
+  return h;
+}
 
-  h += '<div class="card">';
-  h += '<div class="day-head"><span class="n">День ' + d.n + '</span>' +
-       '<span class="muted small">' + esc(humanFull(day)) +
-       (d.period.kind === 'plan' && d.period.days ? ' · из ' + d.period.days.length : '') + '</span></div>';
-  h += '<div class="chips">';
-  if (d.gym) h += '<span class="chip">Зал: ' + esc(d.gym) + '</span>';
-  if (d.topic) h += '<span class="chip b">' + esc(d.topic) + '</span>';
-  h += '</div>';
-  const meals = [['Обед', d.lunch], ['Ужин', d.dinner]].filter(function(m){ return m[1]; });
-  if (meals.length){
-    h += '<div class="chips">';
-    for (const m of meals){
-      const r = findRecipe(m[1]);
-      h += r
-        ? '<button class="chip" onclick="openR(\'' + r.id + '\')">' + m[0] + ': ' + esc(m[1]) + ' →</button>'
-        : '<span class="chip">' + m[0] + ': ' + esc(m[1]) + '</span>';
+/* ─────────────── строки дня ─────────────── */
+
+const ZONES = [
+  {id: 'body',   title: 'Тело'},
+  {id: 'food',   title: 'Еда'},
+  {id: 'study',  title: 'Учёба'},
+  {id: 'regime', title: 'Ещё за день'}
+];
+
+/* Один список дел на день, разложенный по смыслу.
+   Расписание даёт время, состав приёмов — еду, программа курса — учёбу. */
+function dayRows(d, day){
+  const rows = [];
+  const e = S.log[day] || {};
+  const sched = d.period.schedule || [];
+  const at = function(re){ const s = sched.find(function(x){ return re.test(strip(x.s)); }); return s ? s.t : ''; };
+
+  // ── тело
+  rows.push({zone:'body', key:'weigh', t: at(/Вес|Подъём/) || '06:30',
+    text: 'Взвеситься и записать',
+    sub: e.w != null ? fmt(e.w) + ' кг' : 'вес не записан',
+    detail: function(){ return logFields(day); }});
+
+  if (d.gym && !/^нет/i.test(d.gym)){
+    rows.push({zone:'body', key:'gym', t: at(/Зал:/) || '',
+      text: 'Зал: ' + d.gym, sub: '', detail: null});
+  }
+  const walk = sched.filter(function(x){ return /пешк|прогулк/i.test(strip(x.s)); });
+  if (walk.length){
+    rows.push({zone:'body', key:'walk', t: walk[0].t,
+      text: walk.length > 1 ? 'Прогулка 6 км: в зал и обратно' : strip(walk[0].s),
+      sub: '', detail: null});
+  }
+
+  // ── еда
+  const N = nut();
+  const trip = ((D && D.shopping) || []).find(function(x){ return x.date === day; });
+  if (trip){
+    rows.push({zone:'food', key:'shopped', tick:'shopped', t:'09:00',
+      text: 'Закуп — ' + trip.title.replace(/\s*·.*$/, '').toLowerCase(),
+      sub: 'список на пять дней',
+      detail: function(){ return '<div class="md">' + trip.html + '</div>'; }});
+  }
+  if (N) N.meals.forEach(function(meal, i){
+    const idx = i + 1;
+    const dish = mealDish(day, idx, d);
+    const t = mealTotal(meal, day, dish);
+    rows.push({zone:'food', key:'meal' + idx, tick:'meal', mealIdx: idx,
+      t: at(new RegExp('Приём\\s*' + idx)) || '',
+      text: meal.title + (dish ? ' — ' + dish.title : ''),
+      sub: Math.round(t.p) + ' г белка · ' + Math.round(t.kcal) + ' ккал',
+      detail: function(){ return mealDetail(meal, idx, day, d); }});
+  });
+
+  // ── учёба
+  for (const x of dueOn(day)){
+    rows.push({zone:'study', key:'rep|' + x.key + '|' + x.gap, tick:'rep', rep: x,
+      t: '', text: 'Возврат: ' + x.title, sub: REP_LABEL[x.gap],
+      detail: function(){ return repDetail(x); }});
+  }
+  const theme = themeOf(d);
+  if (theme){
+    rows.push({zone:'study', key:'study', t: at(/Учебн/) || '10:45',
+      text: 'Учебный блок — ' + theme.title,
+      sub: theme.modules.map(function(m){ return m.code; }).join(' · '),
+      detail: function(){ return themeDetail(theme); }});
+    if (theme.modules.some(function(m){ return m.frPoints && m.frPoints.length; })){
+      rows.push({zone:'study', key:'fr', t: at(/Французск/) || '19:30',
+        text: 'Французский на диктофон', sub: 'час, по разделам темы',
+        detail: function(){ return frDetail(theme); }});
     }
+  }
+
+  // ── остальное из чек-листа периода
+  ((d.period.checklist) || []).forEach(function(item, i){
+    rows.push({zone:'regime', key:'c' + i, tick:'check', checkIdx: i, t:'', text: item, sub:'', detail: null});
+  });
+
+  return rows;
+}
+
+function strip(s){ return String(s || '').replace(/<[^>]+>/g, ''); }
+
+function rowDone(day, row){
+  const e = S.log[day] || {};
+  if (row.tick === 'meal') return !!(e.meals || {})[row.mealIdx];
+  if (row.tick === 'shopped') return !!e.shopped;
+  if (row.tick === 'check') return e.pid === (periodFor(day) || {}).id && !!(e.check || {})[row.checkIdx];
+  if (row.tick === 'rep') return repDone(row.rep.key, row.rep.gap);
+  return !!(e.done || {})[row.key];
+}
+
+function rowInput(day, row){
+  const on = rowDone(day, row) ? ' checked' : '';
+  if (row.tick === 'meal') return '<input type="checkbox" data-meal="' + row.mealIdx + '"' + on + '>';
+  if (row.tick === 'shopped') return '<input type="checkbox" data-shopped' + on + '>';
+  if (row.tick === 'check') return '<input type="checkbox" data-check="' + row.checkIdx + '"' + on + '>';
+  if (row.tick === 'rep') return '<input type="checkbox" data-rep="' + esc(row.rep.key) + '" data-gap="' + row.rep.gap + '"' + on + '>';
+  return '<input type="checkbox" data-done="' + esc(row.key) + '"' + on + '>';
+}
+
+function zoneCard(zone, day, rows){
+  // внутри блока — по времени; строки без времени идут после
+  const mine = rows.filter(function(r){ return r.zone === zone.id; })
+    .sort(function(a, b){ return (a.t || '99:99').localeCompare(b.t || '99:99'); });
+  if (!mine.length) return '';
+  const done = mine.filter(function(r){ return rowDone(day, r); }).length;
+
+  let h = '<div class="card"><div class="zone-h"><h2>' + esc(zone.title) + '</h2>' +
+    '<span class="muted small">' + done + ' из ' + mine.length + '</span></div><ul class="tl">';
+  for (const r of mine){
+    const open = openRow === r.key;
+    h += '<li><div class="row">' +
+      (r.t ? '<span class="t">' + esc(r.t) + '</span>' : '<span class="t"></span>') +
+      '<label>' + rowInput(day, r) + '<span class="txt">' + esc(r.text) +
+      (r.sub ? '<small class="muted"> · ' + esc(r.sub) + '</small>' : '') + '</span></label></div>';
+    if (r.detail){
+      h += '<button class="more" onclick="toggleRow(\'' + esc(r.key).replace(/'/g, "\\'") + '\')">' +
+        (open ? 'свернуть' : 'подробнее') + '</button>';
+      if (open) h += '<div class="detail">' + r.detail() + '</div>';
+    }
+    h += '</li>';
+  }
+  if (zone.id === 'food') h += waterRow(day);
+  h += '</ul>';
+  if (zone.id === 'food') h += proteinNote(day);
+  return h + '</div>';
+}
+
+function toggleRow(key){ openRow = openRow === key ? null : key; render(); }
+
+function waterRow(day){
+  const v = (S.log[day] || {}).water || 0;
+  return '<li><div class="row"><span class="t"></span><span class="txt" style="display:flex;align-items:center;gap:10px">' +
+    '<span>Вода <b>' + fmt(v) + '</b> л</span>' +
+    '<button class="step" data-water="-0.5">−</button><button class="step" data-water="0.5">+ 0,5 л</button>' +
+    '</span></div></li>';
+}
+
+/* ─────────────── сводка дня ─────────────── */
+
+function summaryCard(d, day, rows){
+  const N = nut();
+  const done = rows.filter(function(r){ return rowDone(day, r); }).length;
+  const pct = rows.length ? done / rows.length : 0;
+  const R = 27, C = 2 * Math.PI * R;
+
+  let h = '<div class="card">';
+  h += '<div class="day-head"><span class="n">День ' + d.n + '</span><span class="muted small">' +
+    esc(humanFull(day)) + (d.period.days ? ' · из ' + d.period.days.length : '') + '</span></div>';
+
+  h += '<div class="ring">' +
+    '<svg width="66" height="66" viewBox="0 0 66 66" aria-hidden="true">' +
+    '<circle cx="33" cy="33" r="' + R + '" fill="none" stroke="var(--line)" stroke-width="7"></circle>' +
+    '<circle cx="33" cy="33" r="' + R + '" fill="none" stroke="var(--a2)" stroke-width="7" stroke-linecap="round"' +
+    ' stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pct)).toFixed(1) +
+    '" transform="rotate(-90 33 33)"></circle></svg>' +
+    '<div><div class="n">' + done + ' из ' + rows.length + '</div>' +
+    '<div class="muted small">дел закрыто</div></div></div>';
+
+  if (N){
+    const s = eaten(day);
+    const np = range(N.norm.p), nk = range(N.norm.kcal);
+    h += '<div class="bars">';
+    h += bar('Белок', s.p, np ? np[0] : 200, 'г');
+    h += bar('Калории', s.kcal, nk ? nk[1] : 2150, '');
+    h += bar('Вода', (S.log[day] || {}).water || 0, 4, 'л');
     h += '</div>';
   }
-  h += '</div>';
+  return h + '</div>';
+}
 
-  h += shoppingCard(day);
-  h += repCard(day);
-  h += scheduleCard(d, day);
-
-  h += themeCard(d);
-  if (d.html) h += '<div class="card"><h2>Сегодня по плану</h2><div class="md">' + d.html + '</div></div>';
-  h += frCard(d);
-
-  h += checklist(day, d.period);
-  return h;
+function bar(label, value, goal, unit){
+  const pct = Math.max(0, Math.min(100, goal ? value / goal * 100 : 0));
+  const shown = unit === 'л' ? fmt(value) : Math.round(value);
+  return '<div class="bar-row"><span>' + label + '</span>' +
+    '<span class="muted">' + shown + ' из ' + goal + (unit ? ' ' + unit : '') + '</span>' +
+    '<span class="track"><span class="fill" style="width:' + pct.toFixed(0) + '%"></span></span></div>';
 }
 
 /* ─────────────── гарнир ─────────────── */
@@ -436,22 +624,6 @@ function viewToday(){
 function range(text){
   const m = String(text || '').match(/(\d+)(?:\s*[–—-]\s*(\d+))?/);
   return m ? [+m[1], m[2] ? +m[2] : +m[1]] : null;
-}
-
-/* ─────────────── закуп ─────────────── */
-
-function shoppingCard(day){
-  const trips = (D && D.shopping) || [];
-  const trip = trips.find(function(t){ return t.date === day; });
-  if (!trip) return '';
-
-  const done = !!(S.log[day] || {}).shopped;
-  let h = '<div class="card"><h2>Сегодня закуп</h2>';
-  h += '<ul class="check"><li><label><input type="checkbox" data-shopped' + (done ? ' checked' : '') +
-    '><span>Сходил, всё купил</span></label></li></ul>';
-  h += '<div class="md">' + trip.html + '</div>';
-  h += '</div>';
-  return h;
 }
 
 function nut(){ return D && D.nutrition && D.nutrition.meals ? D.nutrition : null; }
@@ -472,6 +644,25 @@ function sideGrams(sel){
 function isSideMeal(meal){
   const N = nut();
   return !!(N && N.side && N.side.meal === meal.title);
+}
+
+/* Блюдо приёма: выбранное вручную, иначе то, что стоит в плане дня. */
+function mealDish(day, idx, d){
+  const e = S.log[day] || {};
+  const picked = (e.dish || {})[idx];
+  if (picked && D.recipes){
+    const r = D.recipes.find(function(x){ return x.id === picked; });
+    if (r) return r;
+  }
+  return findRecipe(idx === 1 ? d.lunch : d.dinner);
+}
+
+/* Блюда, которые предлагаются для приёма: обеды к первому, ужины ко второму. */
+function dishChoices(idx){
+  if (!D || !D.recipes) return [];
+  const want = idx === 1 ? /обед/i : /ужин/i;
+  const list = D.recipes.filter(function(r){ return want.test(r.group); });
+  return list.length ? list : D.recipes;
 }
 
 /* Итог приёма с учётом выбранного гарнира. */
@@ -504,42 +695,38 @@ function eaten(day){
   return sum;
 }
 
-function scheduleCard(d, day){
-  const p = d.period;
-  if (!p.schedule || !p.schedule.length) return '';
-  const N = nut();
-  const done = (S.log[day] || {}).meals || {};
-
-  let h = '<div class="card"><h2>Распорядок</h2><ul class="sched">';
-  for (const s of p.schedule){
-    const m = N ? /Приём\s*(\d)/.exec(String(s.s).replace(/<[^>]+>/g, '')) : null;
-    const idx = m ? +m[1] : 0;
-    const meal = idx ? N.meals[idx - 1] : null;
-
-    if (!meal){
-      h += '<li><span class="t">' + esc(s.t) + '</span><span>' + s.s + '</span></li>';
-      continue;
-    }
-    h += '<li class="meal"><span class="t">' + esc(s.t) + '</span><span class="body">' +
-      '<label class="tick"><input type="checkbox" data-meal="' + idx + '"' + (done[idx] ? ' checked' : '') +
-      '><span>' + s.s + '</span></label>' +
-      '<button class="more" onclick="toggleMeal(' + idx + ')">' +
-      (openMeal === idx ? 'скрыть состав' : 'состав и гарнир') + '</button></span></li>';
-    if (openMeal === idx) h += '<li class="detail">' + mealDetail(meal, day) + '</li>';
-  }
-  h += '</ul>' + eatenBlock(day) + '</div>';
-  return h;
-}
-
-function toggleMeal(idx){ openMeal = openMeal === idx ? null : idx; render(); }
-
-function mealDetail(meal, day){
+function mealDetail(meal, idx, day, d){
   const N = nut();
   const sel = chosenSide(day);
   const swap = isSideMeal(meal) && sel;
   const g = swap ? sideGrams(sel) : 0;
+  const dish = mealDish(day, idx, d);
+  const choices = dishChoices(idx);
 
-  let h = '<div class="md"><table><tr><th>Что</th><th>Вес</th><th>Б</th><th>Ж</th><th>У</th><th>Ккал</th></tr>';
+  let h = '';
+  if (choices.length){
+    h += '<div class="f"><label>Блюдо</label><select data-dish="' + idx + '">';
+    for (const r of choices){
+      h += '<option value="' + esc(r.id) + '"' + (dish && r.id === dish.id ? ' selected' : '') + '>' +
+        esc(r.title) + '</option>';
+    }
+    h += '</select></div>';
+  }
+  if (swap){
+    h += '<div class="f" style="margin-top:8px"><label>Гарнир</label><select data-side>';
+    for (const s of N.sides){
+      h += '<option value="' + esc(s.name) + '"' + (s.name === sel.name ? ' selected' : '') + '>' +
+        esc(s.name) + ' — ' + esc(s.ru) + (s.name === N.side.name ? ' · по плану' : '') + '</option>';
+    }
+    h += '</select></div>';
+  }
+  if (dish){
+    h += '<button class="btn" style="margin-top:10px" onclick="openR(\'' + esc(dish.id).replace(/'/g, "\\'") +
+      '\')">Рецепт: ' + esc(dish.title) + ' →</button>';
+  }
+
+  h += '<details style="margin-top:10px"><summary>Состав и цифры</summary>';
+  h += '<div class="md"><table><tr><th>Что</th><th>Вес</th><th>Б</th><th>Ж</th><th>У</th><th>Ккал</th></tr>';
   for (const it of meal.items){
     const mine = swap && it.name === N.side.name;
     const row = mine
@@ -552,48 +739,26 @@ function mealDetail(meal, day){
   const t = mealTotal(meal, day);
   h += '<tr><td><b>Итого</b></td><td></td><td><b>' + Math.round(t.p) + '</b></td><td><b>' +
     Math.round(t.f) + '</b></td><td><b>' + Math.round(t.c) + '</b></td><td><b>' +
-    Math.round(t.kcal) + '</b></td></tr></table></div>';
-
-  if (swap){
-    h += '<div class="f" style="margin-top:8px"><label>Гарнир</label><select data-side>';
-    for (const s of N.sides){
-      h += '<option value="' + esc(s.name) + '"' + (s.name === sel.name ? ' selected' : '') + '>' +
-        esc(s.name) + ' — ' + esc(s.ru) + (s.name === N.side.name ? ' · по плану' : '') + '</option>';
-    }
-    h += '</select></div>';
-  }
+    Math.round(t.kcal) + '</b></td></tr></table></div></details>';
   return h;
 }
 
-function eatenBlock(day){
+/* Подсказка появляется только когда съедены оба приёма — раньше она бессмысленна. */
+function proteinNote(day){
   const N = nut();
   if (!N) return '';
   const s = eaten(day);
-  const cell = function(v, norm, label){
-    return '<div><b>' + Math.round(v) + '</b><span>' + label + ' из ' + norm + '</span></div>';
-  };
-  const np = range(N.norm.p), nf = range(N.norm.f), nc = range(N.norm.c), nk = range(N.norm.kcal);
-  let h = '<div class="nums">' +
-    cell(s.p, np ? np[0] : '?', 'белок') +
-    cell(s.f, nf ? nf[1] : '?', 'жиры') +
-    cell(s.c, nc ? nc[1] : '?', 'углеводы') +
-    cell(s.kcal, nk ? nk[1] : '?', 'ккал') +
-    '</div>';
-
+  const np = range(N.norm.p);
   const done = (S.log[day] || {}).meals || {};
   const count = N.meals.filter(function(_, i){ return done[i + 1]; }).length;
-  h += '<p class="small muted">Съедено за день — по отмеченным приёмам, ' +
-    (count ? count + ' из ' + N.meals.length : 'пока ни одного') + '.</p>';
+  if (count !== N.meals.length || !np || s.p >= np[0] - 5) return '';
 
-  if (count === N.meals.length && np && s.p < np[0] - 5){
-    const need = Math.round(np[0] - s.p);
-    const list = (N.proteinFix || []).slice().sort(function(a, b){ return a.kcal - b.kcal; });
-    const fit = list.filter(function(f){ return f.p >= need; });
-    const pick = (fit.length ? fit : list.slice(-1)).slice(0, 2);
-    h += '<div class="note">Оба приёма съедены, а белка не хватает ' + need + ' г. Добери: ' +
-      pick.map(function(f){ return f.what + ' — ' + f.p + ' г, ' + f.kcal + ' ккал'; }).join(' или ') + '.</div>';
-  }
-  return h;
+  const need = Math.round(np[0] - s.p);
+  const list = (N.proteinFix || []).slice().sort(function(a, b){ return a.kcal - b.kcal; });
+  const fit = list.filter(function(f){ return f.p >= need; });
+  const pick = (fit.length ? fit : list.slice(-1)).slice(0, 2);
+  return '<div class="note">Оба приёма съедены, а белка не хватает ' + need + ' г. Добери: ' +
+    pick.map(function(f){ return f.what + ' — ' + f.p + ' г, ' + f.kcal + ' ккал'; }).join(' или ') + '.</div>';
 }
 
 function themeOf(d){
@@ -604,61 +769,40 @@ function points(list){
   return '<ul>' + list.map(function(p){ return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>';
 }
 
-function themeCard(d){
-  const t = themeOf(d);
-  if (!t) return '';
-  let h = '<div class="card"><h2>Тема дня</h2>';
-  h += '<p class="small muted">Прочитал заметку в Obsidian, закрыл, рассказал вслух по пунктам. Что не вспомнилось — открыл и отметил красным.</p>';
+function themeDetail(t){
+  let h = '<p class="small muted">Прочитал заметку в Obsidian, закрыл, рассказал вслух по пунктам. Что не вспомнилось — открыл и отметил красным.</p>';
   for (const m of t.modules){
     h += '<details><summary>' + esc(m.code) + ' · ' + esc(m.title) + '</summary><div class="md">' +
       '<p class="muted small">' + esc(m.note) + '</p>' + points(m.points) + '</div></details>';
   }
-  return h + '</div>';
+  return h;
 }
 
-function frCard(d){
-  const t = themeOf(d);
-  if (!t) return '';
+function frDetail(t){
   const mods = t.modules.filter(function(m){ return m.frPoints && m.frPoints.length; });
   if (!mods.length) return '';
-  let h = '<div class="card"><h2>Французский · 19:30</h2>' +
-    '<p class="small muted">Час на диктофон, по разделам той же темы. Потом прослушать и отметить, где сбивался на русский.</p>';
+  let h = '<p class="small muted">Час на диктофон, по разделам той же темы. Потом прослушать и отметить, где сбивался на русский.</p>';
   for (const m of mods){
     h += '<details><summary>' + esc(m.fr || m.code) + '</summary><div class="md">' + points(m.frPoints) + '</div></details>';
   }
-  return h + '</div>';
+  return h;
 }
 
-function repCard(day){
-  const due = dueOn(day);
-  if (!due.length) return '';
-  const done = due.filter(function(x){ return repDone(x.key, x.gap); }).length;
-  let h = '<div class="card"><h2>Возврат <span class="muted small" id="rep-n">' + done + ' из ' + due.length + '</span></h2>';
-  h += '<p class="small muted">Конспект закрыт, рассказываешь вслух. Что не вспомнилось — открыл и отметил.</p><ul class="check">';
-  for (const x of due){
-    h += '<li><label><input type="checkbox" data-rep="' + esc(x.key) + '" data-gap="' + x.gap + '"' +
-      (repDone(x.key, x.gap) ? ' checked' : '') + '><span>' + esc(x.title) +
-      ' <small class="muted">· ' + REP_LABEL[x.gap] + '</small></span></label></li>';
-  }
-  return h + '</ul></div>';
-}
-
-function checklist(day, p){
-  const items = (p && p.checklist) || [];
-  if (!items.length) return '';
-  const e = S.log[day] || {};
-  const ok = e.pid === p.id ? (e.check || {}) : {};
-  // дата уже стоит в карточке записи, счёт видно по галочкам — в заголовке лишнее
-  let h = '<div class="card"><h2>Чек-лист</h2><ul class="check">';
-  items.forEach(function(t, i){
-    h += '<li><label><input type="checkbox" data-check="' + i + '"' + (ok[i] ? ' checked' : '') + '><span>' + esc(t) + '</span></label></li>';
-  });
-  return h + '</ul></div>';
+function repDetail(x){
+  const d = dayFor(x.date);
+  const t = d ? themeOf(d) : null;
+  let h = '<p class="small muted">Конспект закрыт, рассказываешь вслух. Что не вспомнилось — открыл и отметил.</p>';
+  if (t) for (const m of t.modules) h += '<details><summary>' + esc(m.code) + '</summary><div class="md">' + points(m.points) + '</div></details>';
+  return h;
 }
 
 function logForm(day, p){
+  return '<div class="card"><h2>Запись за ' + human(day) + '</h2>' + logFields(day) + '</div>';
+}
+
+function logFields(day){
   const e = S.log[day] || {};
-  let h = '<div class="card"><h2>Запись за ' + human(day) + '</h2><div class="grid">';
+  let h = '<div class="grid">';
   h += field('w', 'Вес, кг', e.w, 'decimal');
   h += field('sleep', 'Сон, ч', e.sleep, 'decimal');
   h += field('mood', 'Самочувствие 1–5', e.mood, 'numeric');
@@ -668,7 +812,6 @@ function logForm(day, p){
   h += '<div class="f" style="margin-top:10px"><label>Заметка</label>' +
        '<textarea data-log="note" style="min-height:64px">' + esc(e.note || '') + '</textarea></div>';
   h += '<div class="saved" id="saved"></div>';
-  h += '</div>';
   return h;
 }
 
@@ -1138,6 +1281,7 @@ function bind(date){
       if (!e.check) e.check = {};
       if (el.checked) e.check[el.dataset.check] = 1; else delete e.check[el.dataset.check];
       save();
+      render();
     });
   });
 
@@ -1159,6 +1303,36 @@ function bind(date){
     });
   });
 
+  view.querySelectorAll('[data-done]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (!e.done) e.done = {};
+      if (el.checked) e.done[el.dataset.done] = 1; else delete e.done[el.dataset.done];
+      save();
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-dish]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (!e.dish) e.dish = {};
+      e.dish[el.dataset.dish] = el.value;
+      save();
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-water]').forEach(function(el){
+    el.addEventListener('click', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      e.water = Math.max(0, Math.round(((e.water || 0) + parseFloat(el.dataset.water)) * 10) / 10);
+      if (!e.water) delete e.water;
+      save();
+      render();
+    });
+  });
+
   view.querySelectorAll('[data-meal]').forEach(function(el){
     el.addEventListener('change', function(){
       const e = S.log[date] || (S.log[date] = {});
@@ -1174,14 +1348,9 @@ function bind(date){
       const r = S.rep[el.dataset.rep] || (S.rep[el.dataset.rep] = {});
       if (el.checked) r[el.dataset.gap] = 1; else delete r[el.dataset.gap];
       save();
-      count('rep-n', '[data-rep]');
+      render();
     });
   });
-
-  function count(id, sel){
-    const label = document.getElementById(id);
-    if (label) label.textContent = view.querySelectorAll(sel + ':checked').length + ' из ' + view.querySelectorAll(sel).length;
-  }
 }
 
 /* ─────────────── каркас ─────────────── */
@@ -1220,7 +1389,8 @@ document.querySelectorAll('nav button').forEach(function(b){
 load();
 render();
 
-if ('serviceWorker' in navigator){
+// На localhost воркер не поднимаем: при разработке он упорно отдаёт прошлую версию страницы.
+if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
   window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
 }
 </script>

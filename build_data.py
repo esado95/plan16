@@ -419,8 +419,48 @@ def photo_for(title):
     return ""
 
 
+# Учёт запасов. Ключевые слова ищутся в строке списка покупок; расход берётся
+# из состава приёмов, поэтому списывается только то, что реально отмечено съеденным.
+PRODUCTS = [
+    ("poulet",    "Курица",          "г",  {"Приём 1": 400}, ["poulet", "курин", "курица"]),
+    ("oeufs",     "Яйца",            "шт", {"Приём 2": 6},   ["œuf", "oeuf", "яйц"]),
+    ("fromage",   "Fromage blanc",   "г",  {"Приём 2": 500}, ["fromage blanc"]),
+    ("lentilles", "Чечевица",        "г",  {"Приём 1": 100}, ["lentille", "чечевиц"]),
+    ("legumes",   "Овощи",           "г",  {"Приём 1": 400, "Приём 2": 400},
+     ["légumes", "legumes", "помидор", "кабач", "перец", "огурц", "салат", "морков", "лук"]),
+    ("fruits",    "Фрукты",          "г",  {}, ["фрукт"]),
+    ("pain",      "Хлеб",            "г",  {}, ["pain"]),
+    ("huile",     "Оливковое масло", "мл", {"Приём 1": 20, "Приём 2": 10}, ["huile", "масло"]),
+]
+
+UNITS = {"кг": 1000, "г": 1, "л": 1000, "мл": 1, "шт": 1}
+
+
+def parse_qty(amount, name):
+    """«4,25 кг» → 4250; «5 упаковок» при «Œufs ×20» в названии → 100; «1 буханка 500 г» → 500."""
+    masses = re.findall(r"(\d+(?:[.,]\d+)?)\s*(кг|мл|г|л)\b", amount)
+    if masses:
+        value, unit = masses[-1]
+        return num_or(value) * UNITS[unit], "масса"
+
+    count = re.match(r"\s*(\d+(?:[.,]\d+)?)", amount)
+    if not count:
+        return None, None
+    pack = re.search(r"×\s*(\d+)", name)
+    return num_or(count.group(1)) * (int(pack.group(1)) if pack else 1), "штуки"
+
+
+def product_for(name):
+    low = name.lower()
+    for pid, _, _, _, keys in PRODUCTS:
+        if any(k in low for k in keys):
+            return pid
+    return None
+
+
 def build_shopping():
-    """Походы за продуктами: дата → что взять. Свежее берётся волнами по пять дней."""
+    """Походы за продуктами: дата, что взять и сколько чего это добавляет в запас."""
+    by_id = {p[0]: p for p in PRODUCTS}
     out = []
     for title, body in split_headings(read("Закуп.md"), 1)[1]:
         if not title.startswith("Поход"):
@@ -429,12 +469,32 @@ def build_shopping():
         if not m:
             print("  ! в заголовке «%s» не нашлась дата" % title)
             continue
+
+        items = []
+        for row in parse_table(body):
+            if len(row) < 2 or row[0].lower().startswith(("что", "итого")):
+                continue
+            pid = product_for(row[0])
+            if not pid:
+                continue
+            qty, kind = parse_qty(row[1], row[0])
+            unit = by_id[pid][2]
+            if qty is None or (kind == "штуки") != (unit == "шт"):
+                print("  ! «%s | %s» не пересчитывается в %s, в запас не пойдёт" % (row[0], row[1], unit))
+                continue
+            items.append({"id": pid, "name": row[0], "amount": row[1], "product": pid, "qty": qty})
+
         out.append({
             "title": title,
             "date": date(YEAR, MONTHS[m.group(2)], int(m.group(1))).isoformat(),
             "html": html(body),
+            "items": items,
         })
     return sorted(out, key=lambda x: x["date"])
+
+
+def build_stock():
+    return [{"id": p, "name": n, "unit": u, "perMeal": m} for p, n, u, m, _ in PRODUCTS]
 
 
 def build_doc(filename, doc_id, title, photos=False):
