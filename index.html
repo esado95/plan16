@@ -342,18 +342,23 @@ function blank(){ return {v:1, kind:'journal', log:{}, periods:[], rep:{}, stock
 
 /* ─────────────── остатки продуктов ─────────────── */
 
-function stockList(){ return (D && D.stock) || []; }
+function stockList(){ return (D && D.stock && D.stock.items) || []; }
+function stockCats(){ return (D && D.stock && D.stock.cats) || []; }
 function stockLeft(id){ return ((S.stock || {})[id]) || 0; }
 
-/* Сколько уходит в день по составу приёмов. */
-function perDay(p){
-  const m = p.perMeal || {};
-  return Object.keys(m).reduce(function(a, k){ return a + m[k]; }, 0);
+function daysLeft(p){
+  return p.perDay ? stockLeft(p.id) / p.perDay : null;
 }
 
-function daysLeft(p){
-  const d = perDay(p);
-  return d ? stockLeft(p.id) / d : null;
+/* Сколько всего в категории — складываются только однородные единицы. */
+function catLeft(cat){
+  return stockList()
+    .filter(function(p){ return p.cat === cat.id && p.unit === cat.unit; })
+    .reduce(function(a, p){ return a + stockLeft(p.id); }, 0);
+}
+
+function catDays(cat){
+  return cat.perDay ? catLeft(cat) / cat.perDay : null;
 }
 
 /* Уходить в минус разрешено намеренно: это «не хватило столько-то».
@@ -363,14 +368,29 @@ function addStock(id, delta){
   S.stock[id] = Math.round(((S.stock[id] || 0) + delta) * 10) / 10;
 }
 
-/* Съел приём — списалось; снял отметку — вернулось. */
-function applyMeal(idx, sign){
+/* Съел приём — списалось; снял отметку — вернулось.
+   Списывается только однозначное: закреплённые за приёмом продукты и выбранный
+   гарнир. Мясо и овощи в плане заданы категорией, а не конкретным продуктом,
+   поэтому их остаток ведётся руками — врать точностью тут хуже, чем не считать. */
+function applyMeal(idx, sign, day){
   const N = nut();
   const meal = N && N.meals[idx - 1];
   if (!meal) return;
+
+  const hits = function(p, text){
+    const t = String(text).toLowerCase();
+    return (p.keys || []).some(function(k){ return t.indexOf(k) >= 0; });
+  };
+
   for (const p of stockList()){
-    const amount = (p.perMeal || {})[meal.title];
-    if (amount) addStock(p.id, -amount * sign);
+    if (!p.perDay) continue;
+    if (meal.items.some(function(it){ return hits(p, it.name); })) addStock(p.id, -p.perDay * sign);
+  }
+
+  const sel = chosenSide(day);
+  if (sel && isSideMeal(meal)){
+    const p = stockList().find(function(x){ return hits(x, sel.name) || hits(x, sel.ru); });
+    if (p) addStock(p.id, -sideGrams(sel) * sign);
   }
 }
 
@@ -381,10 +401,12 @@ function applyTrip(tripId, sign){
 }
 
 function stockSummary(){
-  const low = stockList().filter(function(p){ const d = daysLeft(p); return d != null && d < 1; });
-  return low.length
-    ? 'кончается: ' + low.map(function(p){ return p.name.toLowerCase(); }).join(', ')
-    : 'остатки и на сколько хватит';
+  const empty = stockCats().filter(function(c){ return c.perDay && catLeft(c) <= 0; });
+  const low = stockCats().filter(function(c){ const d = catDays(c); return d != null && d > 0 && d < 1; });
+  const bad = empty.concat(low);
+  return bad.length
+    ? 'кончается: ' + bad.map(function(c){ return c.name.toLowerCase(); }).join(', ')
+    : 'остатки по категориям';
 }
 
 /* Состояние продукта: нет / мало / есть. По нему же работает фильтр. */
@@ -422,31 +444,43 @@ function stockScreen(){
   }
   h += '</div>';
 
-  if (!list.length){
-    h += '<p class="small muted" style="margin-top:12px">Здесь пусто.</p>';
-  }
+  if (!list.length) h += '<p class="small muted" style="margin-top:12px">Здесь пусто.</p>';
 
-  let cat = '';
-  for (const p of list){
-    if (p.cat !== cat){
-      cat = p.cat;
-      h += '<div class="grp">' + esc(cat) + '</div>';
+  for (const cat of stockCats()){
+    const mine = list.filter(function(p){ return p.cat === cat.id; });
+    if (!mine.length) continue;
+
+    const days = catDays(cat);
+    const have = stockList().filter(function(p){ return p.cat === cat.id && stockLeft(p.id) > 0; }).length;
+    const total = stockList().filter(function(p){ return p.cat === cat.id; }).length;
+    const sum = cat.perDay
+      ? fmt(catLeft(cat), 0) + ' ' + cat.unit + ' · ' +
+        (days < 1 ? 'на сегодня не хватит' : 'хватит на ' + plural(Math.floor(days), 'день', 'дня', 'дней'))
+      : 'есть ' + have + ' из ' + total;
+
+    h += '<details' + (flt ? ' open' : '') + '><summary>' + esc(cat.name) +
+      '<br><span class="muted small"' + (cat.perDay && days < 1 ? ' style="color:var(--warn)"' : '') + '>' +
+      sum + '</span></summary>';
+
+    for (const p of mine){
+      const left = stockLeft(p.id), d = daysLeft(p), st = stockState(p);
+      const note = left < 0 ? 'не хватило ' + Math.abs(left)
+        : st === 'нет' ? 'нет дома'
+        : d == null ? 'есть'
+        : d < 1 ? 'на сегодня не хватит'
+        : 'хватит на ' + plural(Math.floor(d), 'день', 'дня', 'дней');
+      h += '<div class="prow">' +
+        '<span class="dot ' + (st === 'есть' ? 'ok' : st === 'мало' ? 'low' : 'no') + '"></span>' +
+        '<span style="flex:1">' + esc(p.name) +
+        '<br><span class="muted small">' + note + '</span></span>' +
+        '<input type="text" inputmode="decimal" onchange="setStock(this)" data-stock="' + p.id + '" ' +
+        'value="' + fmt(left, 0) + '" style="width:76px; text-align:right">' +
+        '<span class="muted small" style="min-width:22px">' + esc(p.unit) + '</span></div>';
     }
-    const left = stockLeft(p.id), d = daysLeft(p), st = stockState(p);
-    const note = left < 0 ? 'не хватило ' + Math.abs(left)
-      : st === 'нет' ? 'нет дома'
-      : d == null ? 'есть'
-      : d < 1 ? 'на сегодня не хватит'
-      : 'хватит на ' + plural(Math.floor(d), 'день', 'дня', 'дней');
-    h += '<div class="prow">' +
-      '<span class="dot ' + (st === 'есть' ? 'ok' : st === 'мало' ? 'low' : 'no') + '"></span>' +
-      '<span style="flex:1">' + esc(p.name) +
-      '<br><span class="muted small">' + note + '</span></span>' +
-      '<input type="text" inputmode="decimal" onchange="setStock(this)" data-stock="' + p.id + '" ' +
-      'value="' + fmt(left, 0) + '" style="width:76px; text-align:right">' +
-      '<span class="muted small" style="min-width:22px">' + esc(p.unit) + '</span></div>';
+    h += '</details>';
   }
-  h += '</div>';
+  h += '<p class="hint">Списываются сами только яйца, fromage blanc и выбранный гарнир. ' +
+    'Мясо и овощи в плане заданы категорией, а не конкретным продуктом, — их правь руками.</p></div>';
 
   // списки покупок и вся проза — отдельными свёрнутыми блоками, чтобы не мешались
   const trips = (D && D.shopping) || [];
@@ -1311,7 +1345,7 @@ function viewFood(){
 
   // справочники наверху: раньше они разворачивались целиком и хоронили под собой всё остальное
   h += '<div class="card tight"><ul class="list">';
-  if (D.stock && D.stock.length){
+  if (stockList().length){
     h += '<li><button onclick="openD(\'stock\')"><span class="v">Продукты' +
       '<small>' + stockSummary() + '</small></span><span class="muted">›</span></button></li>';
   }
@@ -1798,7 +1832,7 @@ function bind(date){
       const e = S.log[date] || (S.log[date] = {});
       if (!e.meals) e.meals = {};
       if (el.checked) e.meals[el.dataset.meal] = 1; else delete e.meals[el.dataset.meal];
-      applyMeal(+el.dataset.meal, el.checked ? 1 : -1);
+      applyMeal(+el.dataset.meal, el.checked ? 1 : -1, date);
       save();
       render();                       // пересчитываем «съедено за день»
     });
