@@ -779,6 +779,18 @@ function saladChoices(){
   return D.recipes.filter(function(r){ return /салат/i.test(r.group); });
 }
 
+/* Откуда берётся главный овощ салата — чтобы не выбирать то, чего дома нет. */
+function saladSource(salad){
+  const main = salad.main.charAt(0).toUpperCase() + salad.main.slice(1);
+  const trips = (salad.trips || []).map(function(id){
+    const t = (D.shopping || []).find(function(x){ return x.id === id; });
+    return t ? t.title.toLowerCase() : id;
+  });
+  return trips.length
+    ? main + ' — в списке «' + trips.join('», «') + '»'
+    : main + ' в закуп не входит, докупать отдельно';
+}
+
 function mealSalad(day, idx){
   const picked = ((S.log[day] || {}).salad || {})[idx];
   return picked && D.recipes ? D.recipes.find(function(x){ return x.id === picked; }) : null;
@@ -847,9 +859,11 @@ function mealDetail(meal, idx, day, d){
     h += '<option value=""' + (salad ? '' : ' selected') + '>Без салата</option>';
     for (const r of salads){
       h += '<option value="' + esc(r.id) + '"' + (salad && r.id === salad.id ? ' selected' : '') + '>' +
-        esc(r.title) + '</option>';
+        esc(r.title) + (r.main ? ' · ' + esc(r.main) : '') + '</option>';
     }
-    h += '</select></div>';
+    h += '</select>';
+    if (salad && salad.main) h += '<div class="hint">' + saladSource(salad) + '</div>';
+    h += '</div>';
   }
   // из чего приём состоит целиком — иначе кажется, что ешь одну курицу с чечевицей
   const inDish = meal.items.filter(function(it){

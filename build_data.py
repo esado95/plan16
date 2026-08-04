@@ -470,10 +470,11 @@ def build_shopping():
         if title not in TRIPS:
             continue
 
-        items = []
+        items, names = [], []
         for row in parse_table(body):
             if len(row) < 2 or row[0].lower().startswith(("что", "итого")):
                 continue
+            names.append(row[0])
             pid = product_for(row[0])
             if not pid:
                 continue
@@ -484,7 +485,8 @@ def build_shopping():
                 continue
             items.append({"id": pid, "name": row[0], "amount": row[1], "product": pid, "qty": qty})
 
-        out.append({"id": slug(title), "title": title, "html": html(body), "items": items})
+        out.append({"id": slug(title), "title": title, "html": html(body),
+                    "items": items, "names": names})
 
     missing = [t for t in TRIPS if t not in [x["title"] for x in out]]
     if missing:
@@ -525,6 +527,39 @@ def build_doc(filename, doc_id, title, photos=False):
 
 
 DISH = re.compile(r"^(\d+\s*·|Sauce\b|Gremolata|Déglaçage)", re.I)
+
+# Главный овощ салата: по нему видно, собирается ли салат из того, что куплено.
+SALAD_MAIN = [
+    ("carottes-rapees",             "морковь",          ["морков"]),
+    ("salade-verte",                "зелёный салат",    ["салат зел", "салат"]),
+    ("concombres-au-fromage-blanc", "огурцы",           ["огурц"]),
+    ("salade-de-tomates",           "помидоры",         ["помидор"]),
+    ("haricots-verts-en-salade",    "зелёная фасоль",   ["haricots verts", "фасоль зел"]),
+    ("salade-de-chou-blanc",        "белокочанная капуста", ["капуст"]),
+    ("endives-a-la-vinaigrette",    "эндивий",          ["endive", "эндиви"]),
+    ("salade-de-courgettes-crues",  "кабачки",          ["кабач"]),
+]
+
+
+def tag_salads(recipes, shopping):
+    """Каждому салату — главный овощ и списки закупа, где он есть.
+
+    Без этого салат выбирается вслепую: непонятно, собирается ли он
+    из того, что куплено, или овощ надо ещё докупить.
+    """
+    by_id = {r["id"]: r for r in recipes}
+    for sid, main, keys in SALAD_MAIN:
+        r = by_id.get(sid)
+        if not r:
+            print("  ! салата %s нет среди рецептов, овощ не привязан" % sid)
+            continue
+        r["main"] = main
+        r["trips"] = [
+            t["id"] for t in shopping
+            if any(any(k in name.lower() for k in keys) for name in t["names"])
+        ]
+        if not r["trips"]:
+            print("  ! «%s»: %s не входит ни в один список закупа" % (r["title"], main))
 
 
 def build_recipes(docs):
@@ -568,6 +603,9 @@ def main():
         build_doc("Что_это_значит.md", "glossaire", "Что это значит"),
     ]
 
+    shopping = build_shopping()
+    recipes = build_recipes(docs)
+    tag_salads(recipes, shopping)
     sprint = build_sprint()
     curriculum = sprint.pop("curriculum")           # программа общая, а не свойство рывка
 
@@ -577,8 +615,8 @@ def main():
         "periods": [sprint],
         "curriculum": curriculum,
         "nutrition": build_nutrition(),
-        "shopping": build_shopping(),
-        "recipes": build_recipes(docs),
+        "shopping": shopping,
+        "recipes": recipes,
         "docs": docs,
     }
 
