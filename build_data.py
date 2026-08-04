@@ -628,6 +628,7 @@ def main():
         "periods": [sprint],
         "curriculum": curriculum,
         "nutrition": build_nutrition(),
+        "stock": build_stock(),
         "shopping": shopping,
         "recipes": recipes,
         "docs": docs,
