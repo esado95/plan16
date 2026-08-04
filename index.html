@@ -859,7 +859,7 @@ function viewAI(){
     lidl += '<button class="btn" onclick="syncLidl(this)">Найти новые чеки</button>';
   }
   lidl += '</div></details>';
-  let h = '<div class="card chat-card"><div class="chat-top"><div class="chat-avatar">✦</div><div><b>Plan AI</b><small>контекст Plan16 подключён</small></div></div><div class="chat" id="chat-thread">';
+  let h = '<div class="card chat-card"><div class="chat-top"><div class="chat-avatar">✦</div><div><b>Plan AI</b><small>Подключён</small></div></div><div class="chat" id="chat-thread">';
   if (!ai.messages.length) h += '<div class="msg ai">Привет, Саид. Я на связи.</div>';
   for (const m of ai.messages) h += '<div class="msg ' + (m.role === 'user' ? 'me' : 'ai') + '">' + esc(m.text) + '</div>';
   if (aiWaiting) h += '<div class="msg ai typing" aria-label="Ответ формируется"><i></i><i></i><i></i></div>';
