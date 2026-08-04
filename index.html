@@ -139,11 +139,7 @@ button.chip{cursor:pointer; font-family:inherit}
 .ring{display:flex; align-items:center; gap:13px; margin:12px 0 4px}
 .ring svg{flex:none}
 .ring .n{font:680 20px/1.2 var(--fn); letter-spacing:-.02em}
-.day-head .n, .big, .nums b, .pill b{font-family:var(--fn)}
-.bars{display:flex; flex-direction:column; gap:9px; margin-top:12px}
-.bar-row{display:grid; grid-template-columns:1fr auto; gap:2px 8px; font-size:12.5px}
-.track{grid-column:1/-1; height:6px; border-radius:99px; background:var(--line); overflow:hidden}
-.fill{height:100%; border-radius:99px; background:var(--a1)}
+.day-head .n, .big, .pill b{font-family:var(--fn)}
 .step{
   background:var(--bg); border:1px solid var(--line); border-radius:8px; color:var(--ink);
   font:inherit; font-size:13px; padding:5px 10px; cursor:pointer;
@@ -155,15 +151,14 @@ button.chip{cursor:pointer; font-family:inherit}
 .tl li:first-child{border-top:0}
 .tl .row{display:flex; gap:10px; align-items:flex-start; padding:10px 0}
 .tl .t{
-  color:var(--a1); font-variant-numeric:tabular-nums; font-weight:600;
-  min-width:42px; flex:none; font-size:13px; padding-top:2px;
+  color:var(--a1); font:600 13px/1.4 var(--fn); font-variant-numeric:tabular-nums;
+  min-width:42px; flex:none; padding-top:2px;
 }
 .tl label{display:flex; gap:10px; align-items:flex-start; flex:1; cursor:pointer}
 .tl input[type=checkbox]{
   width:21px; height:21px; margin:0; accent-color:var(--a2); flex:none;
   border-radius:var(--rb);
 }
-.tl .t{font-family:var(--fn)}
 .tl .txt{flex:1; font-size:14px; line-height:1.45}
 .tl input:checked + .txt{color:var(--muted)}
 .tl .more{
@@ -281,7 +276,7 @@ svg.chart{width:100%; height:150px; display:block; margin:8px 0 4px}
 .md table{width:100%; border-collapse:collapse; font-size:13.5px; margin:0 0 10px; display:block; overflow-x:auto}
 .md th,.md td{border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top}
 .md th{background:var(--bg); font-weight:600}
-.md .fill{display:inline-block; min-width:120px; border-bottom:1px solid var(--muted)}
+.md .blank{display:inline-block; min-width:120px; border-bottom:1px solid var(--muted)}
 details{border-top:1px solid var(--line)}
 details:first-of-type{border-top:0}
 summary{padding:11px 0; cursor:pointer; font-size:14px; font-weight:550; list-style:none}
@@ -353,6 +348,22 @@ function applyTheme(){
   if (meta) meta.setAttribute('content', getComputedStyle(document.body).backgroundColor);
 }
 
+function setNorm(el){
+  if (!S.ui) S.ui = {};
+  if (!S.ui.norm) S.ui.norm = {};
+  const v = num(el.value);
+  if (v == null || v <= 0) delete S.ui.norm[el.dataset.norm];
+  else S.ui.norm[el.dataset.norm] = Math.round(v);
+  save();
+  render();
+}
+
+function resetNorm(){
+  if (S.ui) delete S.ui.norm;
+  save();
+  render();
+}
+
 function setTheme(id){
   if (!S.ui) S.ui = {};
   S.ui.theme = id;
@@ -384,7 +395,7 @@ function load(){
   try { const raw = localStorage.getItem(SKEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch(e){ S = blank(); }
 }
 function save(){ try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e){ alert('Не удалось сохранить: ' + e.message); } }
-function saveData(){ try { localStorage.setItem(DKEY, JSON.stringify(D)); } catch(e){ alert('Файл слишком велик для хранилища браузера: ' + e.message); } }
+function saveData(){ try { localStorage.setItem(DKEY, JSON.stringify(D)); } catch(e){ alert('Не хватило места в памяти телефона.'); } }
 
 /* ─────────────── периоды и дни ─────────────── */
 
@@ -524,7 +535,7 @@ function viewToday(){
       ? 'Период «' + esc(p.title) + '» начинается ' + human(p.start) + '.'
       : (p ? 'Период «' + esc(p.title) + '» закончился ' + human(p.end || p.start) + '.' : '');
     return '<div class="card"><h2>На сегодня плана нет</h2><p class="muted small">' + gap +
-      ' Заведи новый период в «Ещё» — расписание и чек-лист задаются там, дневник продолжится без разрыва.</p>' +
+      ' Заведи новый режим в «Ещё» — записи и кухня останутся.</p>' +
       '<button class="btn acc" onclick="go(\'more\')">Открыть настройки</button></div>' + logForm(day, null);
   }
 
@@ -659,13 +670,54 @@ function zoneCard(zone, day, rows){
     }
     h += '</li>';
   }
-  if (zone.id === 'food') h += waterRow(day) + tripRow(day);
+  if (zone.id === 'food') h += extrasRow(day) + waterRow(day) + tripRow(day);
   h += '</ul>';
   if (zone.id === 'food') h += proteinNote(day);
   return h + '</div>';
 }
 
 function toggleRow(key){ openRow = openRow === key ? null : key; render(); }
+
+/* Добавки и остаток до нормы: главный ответ на вопрос «влезет ли ещё кусок хлеба». */
+function extrasRow(day){
+  const N = nut();
+  if (!N || !N.extras) return '';
+  const e = S.log[day] || {};
+  const got = eaten(day), n = norms();
+  const left = {p: n.p - got.p, c: n.c - got.c, kcal: n.kcal - got.kcal};
+  const chosen = e.extra || {};
+
+  // у калорий и углеводов плох перебор, у белка — недобор; красить одинаково нельзя
+  const cap = function(v, unit){
+    return v >= 0
+      ? '<b>' + Math.round(v) + '</b> ' + unit
+      : '<b style="color:var(--warn)">+' + Math.round(-v) + '</b> ' + unit + ' сверх';
+  };
+  const floorP = left.p > 0
+    ? '<b>' + Math.round(left.p) + '</b> г белка'
+    : '<b style="color:var(--a2)">белок закрыт</b>';
+
+  let h = '<li><div class="row"><span class="t"></span><span class="txt">' +
+    '<span class="muted small">Осталось на сегодня</span><br>' +
+    cap(left.kcal, 'ккал') + ' · ' + cap(left.c, 'г углеводов') + ' · ' + floorP +
+    '<br><button class="more" style="padding-left:0" onclick="toggleRow(\'extras\')">' +
+    (openRow === 'extras' ? 'свернуть' : 'добавить что-то ещё') + '</button></span></div>';
+
+  if (openRow === 'extras'){
+    h += '<div class="detail" style="padding-left:0"><ul class="parts">';
+    for (const x of N.extras){
+      const cnt = chosen[x.id] || 0;
+      h += '<li style="display:flex; align-items:center; gap:8px">' +
+        '<span style="flex:1">' + esc(x.name) + '<br><span class="muted small">' +
+        x.kcal + ' ккал · ' + x.p + ' г белка · ' + x.c + ' г углеводов</span></span>' +
+        (cnt ? '<button class="step" data-extra="' + x.id + '" data-d="-1">−</button>' +
+               '<b style="min-width:14px; text-align:center">' + cnt + '</b>' : '') +
+        '<button class="step" data-extra="' + x.id + '" data-d="1">+</button></li>';
+    }
+    h += '</ul></div>';
+  }
+  return h + '</li>';
+}
 
 function tripRow(day){
   const trips = (D && D.shopping) || [];
@@ -713,11 +765,10 @@ function summaryCard(d, day, rows){
     '<div class="muted small">дел закрыто</div></div></div>';
 
   if (N){
-    const s = eaten(day);
-    const np = range(N.norm.p), nk = range(N.norm.kcal);
+    const s = eaten(day), n = norms();
     h += '<div class="pills">' +
-      pill(Math.round(s.p), 'белок / ' + (np ? np[0] : 200)) +
-      pill(Math.round(s.kcal), 'ккал / ' + (nk ? nk[1] : 2150)) +
+      pill(Math.round(s.p), 'белок / ' + n.p) +
+      pill(Math.round(s.kcal), 'ккал / ' + n.kcal) +
       pill(fmt((S.log[day] || {}).water || 0), 'вода / 4 л') +
       '</div>';
   }
@@ -812,18 +863,38 @@ function mealTotal(meal, day){
   return out;
 }
 
-/* Съедено за день — только по отмеченным приёмам, а не по плану. */
+/* Съедено за день: отмеченные приёмы плюс добавки. План здесь ни при чём. */
 function eaten(day){
   const N = nut();
-  const done = (S.log[day] || {}).meals || {};
+  const e = S.log[day] || {};
+  const done = e.meals || {};
   const sum = {p:0, f:0, c:0, kcal:0};
   if (!N) return sum;
+
   N.meals.forEach(function(m, i){
     if (!done[i + 1]) return;
     const t = mealTotal(m, day);
     sum.p += t.p; sum.f += t.f; sum.c += t.c; sum.kcal += t.kcal;
   });
+
+  const extras = e.extra || {};
+  for (const x of (N.extras || [])){
+    const n = extras[x.id] || 0;
+    sum.p += x.p * n; sum.f += x.f * n; sum.c += x.c * n; sum.kcal += x.kcal * n;
+  }
   return sum;
+}
+
+/* Дневная норма: своя, если задана в настройках, иначе из плана. */
+function norms(){
+  const N = nut();
+  const my = (S.ui || {}).norm || {};
+  const p = range(N ? N.norm.p : ''), c = range(N ? N.norm.c : ''), k = range(N ? N.norm.kcal : '');
+  return {
+    p: my.p != null ? my.p : (p ? p[0] : 200),
+    c: my.c != null ? my.c : (c ? c[1] : 105),
+    kcal: my.kcal != null ? my.kcal : (k ? k[1] : 2150)
+  };
 }
 
 function mealDetail(meal, idx, day, d){
@@ -990,9 +1061,9 @@ function field(k, label, v, mode){
 }
 
 function viewEmpty(){
-  return '<div class="empty"><p>Здесь пусто, пока не загружен твой файл с планом. Он лежит отдельно от приложения — в репозитории его нет.</p>' +
-    '<button class="btn acc" onclick="pick()">Загрузить plan16-data.json</button>' +
-    '<p class="hint">На iPhone: «Файлы» → iCloud Drive → папка с планом.</p></div>';
+  return '<div class="empty"><p>Здесь появится твой день, когда загрузишь файл с планом.</p>' +
+    '<button class="btn acc" onclick="pick()">Загрузить файл</button>' +
+    '<p class="hint">«Файлы» → iCloud Drive → План → plan16-data.json</p></div>';
 }
 
 /* ─────────────── вкладка «План» ─────────────── */
@@ -1219,7 +1290,7 @@ function viewLog(){
     h += '</ul></div>';
   }
 
-  h += '<div class="card"><h2>Копия</h2><p class="small muted">Записи лежат в браузере. Safari чистит хранилище сайта после недели без визитов, поэтому копию стоит сохранять раз в несколько дней. В файл попадают и заведённые тобой периоды.</p>' +
+  h += '<div class="card"><h2>Копия</h2><p class="small muted">Записи хранятся в телефоне. Раз в несколько дней сохраняй копию — если долго не открывать приложение, телефон может их очистить.</p>' +
     '<div class="row2"><button class="btn" onclick="exportLog()">Сохранить</button><button class="btn" onclick="pick()">Загрузить</button></div></div>';
   return h;
 }
@@ -1271,29 +1342,41 @@ function viewMore(){
 
   h += '<div class="card"><h2>Мой файл</h2>';
   if (D){
-    const p = periods();
-    const withPhoto = (D.recipes || []).filter(function(r){ return r.photo; }).length;
-    h += '<p class="small muted">Загружен ' + esc(D.generated || '—') + ' · ' +
-      plural((D.recipes||[]).length, 'блюдо', 'блюда', 'блюд') +
-      ', из них с фото ' + withPhoto + ' · ' +
-      plural(p.length, 'период', 'периода', 'периодов') + '</p>';
+    h += '<p class="small muted">Обновлён ' + (D.generated ? human(D.generated) : '—') + ' · ' +
+      plural((D.recipes||[]).length, 'блюдо', 'блюда', 'блюд') + ' · ' +
+      plural(periods().length, 'режим', 'режима', 'режимов') + '</p>';
   } else {
-    h += '<p class="small muted">Файл не загружен — приложение пустое.</p>';
+    h += '<p class="small muted">Файл пока не загружен.</p>';
   }
   h += '<button class="btn acc" onclick="pick()">Загрузить файл</button>';
-  h += '<p class="hint">Одна кнопка на оба файла: и на план, и на копию дневника — приложение само разберётся, что внутри.</p></div>';
+  h += '<p class="hint">Сюда же загружается сохранённая копия дневника.</p></div>';
 
-  h += '<div class="card"><h2>Периоды</h2>' +
-    '<p class="small muted">Приложение показывает тот период, в который попадает сегодняшняя дата. Когда рывок кончится, заведи обычный — дневник и кухня останутся общими.</p>' +
+  h += '<div class="card"><h2>Режимы</h2>' +
+    '<p class="small muted">Показывается тот режим, в который попадает сегодняшний день. Когда рывок кончится, заведи обычный — записи и кухня останутся.</p>' +
     '<div class="card tight" style="margin:0 0 10px"><ul class="list">';
   for (const p of periods()){
     const mine = (S.periods || []).some(function(x){ return x.id === p.id; });
     const cur = periodFor(today()) && periodFor(today()).id === p.id;
     h += '<li' + (cur ? ' class="now"' : '') + '><button ' + (mine ? 'onclick="editPeriod(\'' + p.id + '\')"' : 'disabled style="opacity:.75"') + '>' +
       '<span class="v">' + esc(p.title) + '<small>' + human(p.start) + (p.end ? ' — ' + human(p.end) : ' — без конца') +
-      (mine ? '' : ' · из файла') + '</small></span>' + (mine ? '<span class="muted small">изменить</span>' : '') + '</button></li>';
+      (mine ? '' : ' · из плана') + '</small></span>' + (mine ? '<span class="muted small">изменить</span>' : '') + '</button></li>';
   }
-  h += '</ul></div><button class="btn" onclick="editPeriod(null)">Новый период</button></div>';
+  h += '</ul></div><button class="btn" onclick="editPeriod(null)">Новый режим</button></div>';
+
+  if (nut()){
+    const n = norms(), my = (S.ui || {}).norm || {};
+    h += '<div class="card"><h2>Дневная норма</h2>' +
+      '<p class="small muted">По ней считается остаток на вкладке «Сегодня». Меняй, если режим стал другим: ' +
+      'после рывка норма выше, в разгрузочный день ниже.</p><div class="grid">' +
+      '<div class="f"><label>Калории</label><input type="text" inputmode="numeric" onchange="setNorm(this)" data-norm="kcal" value="' + n.kcal + '"></div>' +
+      '<div class="f"><label>Белок, г</label><input type="text" inputmode="numeric" onchange="setNorm(this)" data-norm="p" value="' + n.p + '"></div>' +
+      '<div class="f"><label>Углеводы, г</label><input type="text" inputmode="numeric" onchange="setNorm(this)" data-norm="c" value="' + n.c + '"></div>' +
+      '</div>';
+    if (my.kcal != null || my.p != null || my.c != null){
+      h += '<button class="btn" style="margin-top:10px" onclick="resetNorm()">Вернуть как в плане</button>';
+    }
+    h += '</div>';
+  }
 
   h += '<div class="card"><h2>Оформление</h2><div class="themes">';
   const cur = (S.ui || {}).theme || '';
@@ -1400,7 +1483,7 @@ document.getElementById('file').addEventListener('change', function(ev){
   r.onload = function(){
     let obj;
     try { obj = JSON.parse(r.result); }
-    catch(e){ alert('Это не JSON: ' + e.message); return; }
+    catch(e){ alert('Файл повреждён или это не тот файл.'); return; }
 
     if (obj.periods && obj.docs){
       D = obj; saveData();
@@ -1412,7 +1495,7 @@ document.getElementById('file').addEventListener('change', function(ev){
       save();
       alert('Дневник восстановлен.');
     } else {
-      alert('Не понял, что это за файл: нет ни плана, ни записей.');
+      alert('Это не файл плана и не копия дневника.');
       return;
     }
     ev.target.value = '';
@@ -1525,6 +1608,18 @@ function bind(date){
       if (el.dataset.trip){ e.trip = el.dataset.trip; }
       else { delete e.trip; delete e.shopped; }
       if (!Object.keys(e).length) delete S.log[date];
+      save();
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-extra]').forEach(function(el){
+    el.addEventListener('click', function(){
+      const e = S.log[date] || (S.log[date] = {});
+      if (!e.extra) e.extra = {};
+      const id = el.dataset.extra;
+      e.extra[id] = Math.max(0, (e.extra[id] || 0) + (+el.dataset.d));
+      if (!e.extra[id]) delete e.extra[id];
       save();
       render();
     });

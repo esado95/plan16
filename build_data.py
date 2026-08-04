@@ -57,7 +57,7 @@ def html(text):
     # хвостовой разделитель разделов в <hr> превращать незачем
     text = re.sub(r"\n-{3,}\s*$", "", text).strip()
     # прочерки для заполнения от руки: markdown принял бы их за выделение
-    text = re.sub(r"_{3,}", '<span class="fill"></span>', text)
+    text = re.sub(r"_{3,}", '<span class="blank"></span>', text)
     if not text:
         return ""
     MD.reset()
@@ -302,6 +302,17 @@ PROTEIN_FIX = [
     ("100 г blanc de poulet", 23, 113),
 ]
 
+# Добавки сверх двух приёмов: то, что он решает съесть по ходу дня.
+# Б / Ж / У / ккал на порцию.
+EXTRAS = [
+    ("pain",   "Ломтик хлеба, 40 г",          3,  1, 19, 100),
+    ("fruit",  "Порция фруктов, ~180 г",      1,  0, 16,  70),
+    ("thon",   "Банка тунца, 112 г",         24,  1,  0, 100),
+    ("oeufs2", "Два яйца",                   13, 11,  1, 156),
+    ("fb200",  "Fromage blanc 0%, 200 г",    16,  0,  8,  94),
+    ("salade", "Салат с лёгким соусом",       2,  1,  8,  60),
+]
+
 
 def parse_table(text):
     """Строки markdown-таблицы без разделителя и без звёздочек."""
@@ -375,6 +386,8 @@ def build_nutrition():
         "side": side,
         "sides": [{"name": n, "ru": ru, "p": p, "f": f, "c": c, "kcal": k} for n, ru, p, f, c, k in SIDES],
         "proteinFix": [{"what": w, "p": p, "kcal": k} for w, p, k in PROTEIN_FIX],
+        "extras": [{"id": i, "name": n, "p": p, "f": f, "c": c, "kcal": k}
+                   for i, n, p, f, c, k in EXTRAS],
     }
 
 
