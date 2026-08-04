@@ -427,6 +427,14 @@ PHOTOS = [
     ("sauce-au-fromage-blanc", "29-sauce-fromage-blanc"),
     ("deglacage", "30-deglacage"),
     ("sauce-soja-citron", "31-sauce-soja-citron"),
+    ("carottes-rapees", "32-carottes-rapees"),
+    ("salade-verte", "33-salade-verte"),
+    ("concombres-au-fromage-blanc", "34-concombres-fromage-blanc"),
+    ("salade-de-tomates", "35-salade-tomates"),
+    ("haricots-verts-en-salade", "36-haricots-verts-salade"),
+    ("salade-de-chou-blanc", "37-salade-chou-blanc"),
+    ("endives-a-la-vinaigrette", "38-endives-vinaigrette"),
+    ("salade-de-courgettes-crues", "39-salade-courgettes-crues"),
 ]
 
 

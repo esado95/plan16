@@ -1720,8 +1720,8 @@ function viewFood(){
       let h = '<div class="kitchen-shell"><button class="btn recipe-back" onclick="openR(null)">← Вернуться к рецептам</button>';
       h += '<article class="card recipe-view">';
       if (r.photo) h += '<img class="photo" src="photos/' + r.photo + '.webp" alt="' + esc(r.title) + '">';
-      h += '<div class="recipe-head"><div class="kitchen-kicker">' + esc(foodCategoryName(foodCategory(r))) + '</div><h2>' + esc(r.title) + '</h2>';
-      if (r.titleRu) h += '<div class="recipe-ru">' + esc(r.titleRu) + '</div>';
+      h += '<div class="recipe-head"><div class="kitchen-kicker">' + esc(foodCategoryName(foodCategory(r))) + '</div><h2>' + esc(r.titleRu || r.title) + '</h2>';
+      if (r.titleRu) h += '<div class="recipe-ru">' + esc(r.title) + '</div>';
       h += '</div><div class="recipe-body md">' + r.html + '</div></article></div>';
       return h;
     }
@@ -1754,20 +1754,20 @@ function viewFood(){
     const cat = foodCategory(r), text = (r.title + ' ' + (r.titleRu || '') + ' ' + r.group).toLowerCase();
     h += '<button class="recipe-card" data-food="' + esc(text) + '" onclick="openR(\'' + r.id + '\')"><span class="recipe-media">' +
       '<img loading="lazy" src="photos/' + r.photo + '.webp" alt="' + esc(r.titleRu || r.title) + '">' +
-      '<span class="recipe-badge">' + esc(foodCategoryName(cat)) + '</span></span><span class="recipe-copy"><b>' + esc(r.title) +
-      '</b><small>' + esc(r.titleRu || r.group) + '</small></span></button>';
+      '<span class="recipe-badge">' + esc(foodCategoryName(cat)) + '</span></span><span class="recipe-copy"><b>' + esc(r.titleRu || r.title) +
+      '</b><small>' + esc(r.titleRu ? r.title : r.group) + '</small></span></button>';
   }
     h += '</div></section>';
   }
   if (withoutPhoto.length){
     h += '<section class="recipe-section"><div class="kitchen-section-head"><h2>' +
-      (foodFilter === 'all' ? 'Салаты и соусы' : esc(foodCategoryName(foodFilter))) +
+      (foodFilter === 'all' ? 'Остальные рецепты' : esc(foodCategoryName(foodFilter))) +
       '</h2><span>быстрые рецепты</span></div><div class="recipe-compact-grid">';
     for (const r of withoutPhoto){
       const cat = foodCategory(r), text = (r.title + ' ' + (r.titleRu || '') + ' ' + r.group).toLowerCase();
       h += '<button class="recipe-card recipe-compact" data-food="' + esc(text) + '" onclick="openR(\'' + r.id + '\')">' +
-        '<span class="compact-mark">' + (cat === 'salad' ? 'САЛ' : 'СОУС') + '</span><span class="recipe-copy"><b>' + esc(r.title) +
-        '</b><small>' + esc(r.titleRu || r.group) + '</small></span><span class="compact-arrow">›</span></button>';
+        '<span class="compact-mark">' + (cat === 'salad' ? 'САЛ' : 'СОУС') + '</span><span class="recipe-copy"><b>' + esc(r.titleRu || r.title) +
+        '</b><small>' + esc(r.titleRu ? r.title : r.group) + '</small></span><span class="compact-arrow">›</span></button>';
     }
     h += '</div></section>';
   }
