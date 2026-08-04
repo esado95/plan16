@@ -884,9 +884,12 @@ function mealDetail(meal, idx, day, d){
     h += '<button class="btn" style="margin-top:10px" onclick="openR(\'' + esc(dish.id).replace(/'/g, "\\'") +
       '\')">Рецепт: ' + esc(dish.title) + ' →</button>';
   }
+  // ссылка на салаты есть всегда: иначе рецепт не посмотреть, не выбрав вслепую
+  h += salad
+    ? '<button class="btn" style="margin-top:8px" onclick="openR(\'' + esc(salad.id).replace(/'/g, "\\'") +
+      '\')">Рецепт: ' + esc(salad.title) + ' →</button>'
+    : '<button class="btn" style="margin-top:8px" onclick="openD(\'salades\')">Посмотреть все салаты →</button>';
   if (salad){
-    h += '<button class="btn" style="margin-top:8px" onclick="openR(\'' + esc(salad.id).replace(/'/g, "\\'") +
-      '\')">Рецепт: ' + esc(salad.title) + ' →</button>';
     h += '<p class="hint">Салат в цифры приёма не входит. С низкокалорийным соусом это примерно 60–110 ккал ' +
       'и почти без жиров; с классическим винегретом — на 280 ккал больше, и тогда убирай ложку масла из блюда.</p>';
   }
